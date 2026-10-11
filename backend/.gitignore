@@ -6,6 +6,10 @@ notes.md
 .env
 .env.*
 !.env.example
+*CREDENTIALS*
+CAMPUSHQ_CREDENTIALS_AND_URLS.txt
+powershell.cmd
+powershell.bat
 *.pdf
 data/
 src/public/uploads/student/*

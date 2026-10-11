@@ -49,27 +49,21 @@ CampusHQ is a full-featured, production-ready School Enterprise Resource Plannin
 
 ## 📋 Prerequisites & System Requirements
 
-- **Node.js:** v18.0.0 or higher (v20+ recommended)
+- **Node.js:** v20.0.0 or higher
 - **npm:** v9.0.0 or higher
-- **MongoDB:** Community Server 6.0+ running on `mongodb://127.0.0.1:27017` (or allow the embedded fallback launcher to initialize automatically in development)
+- **MongoDB:** MongoDB Community Server 6.0+ on `mongodb://127.0.0.1:27017/campushq` or an authorized MongoDB Atlas URI.
 
 ---
 
 ## 🛠️ Installation & Setup
 
-### 1. Clone the Repository
-```bash
-git clone <repository-url>
-cd ERP_clone
-```
-
-### 2. Install Backend Dependencies
+### 1. Install Backend Dependencies
 ```powershell
 cd backend
 npm install
 ```
 
-### 3. Install Frontend Dependencies
+### 2. Install Frontend Dependencies
 ```powershell
 cd ../frontend
 npm install
@@ -80,39 +74,39 @@ npm install
 ## ⚙️ Environment Configuration
 
 ### Backend (`backend/.env`)
-Create or verify `backend/.env`:
+Ensure `backend/.env` is configured with your database and security credentials:
 ```env
 PORT=8888
-DATABASE=mongodb://127.0.0.1:27017/idurar
-JWT_SECRET=campushq_jwt_secure_dev_key_2026
-FRONTEND_URL=http://localhost:3000
+DATABASE=mongodb://127.0.0.1:27017/campushq
+JWT_SECRET=your_secure_random_64_char_jwt_secret_key_here
+FRONTEND_URL=http://localhost:3000,http://127.0.0.1:3000
 NODE_ENV=development
+WEBSITE_URL=http://localhost:3000
+PUBLIC_SERVER_FILE=http://localhost:8888/
 ```
 
 ### Frontend (`frontend/.env`)
-Create or verify `frontend/.env`:
+Ensure `frontend/.env` points to the local backend API:
 ```env
-VITE_BACKEND_SERVER=http://localhost:8888/
+VITE_BACKEND_SERVER=http://localhost:8888
+VITE_FILE_BASE_URL=http://localhost:8888
 ```
 
 ---
 
-## 🌱 Database Seeding
+## 🌱 Database Seeding & Verification
 
-To initialize the default school classes, subjects, faculty, demo students, and test accounts:
-
+To run automated backend security and unit tests:
 ```powershell
 cd backend
-node src/setup/seedSchoolData.js
+npm test
 ```
 
-This seeds:
-- Academic classes: Grade 10, Grade 9
-- Sections: Section A (Room 301), Section B (Room 302)
-- Faculty: Sarah Jenkins (Mathematics), Robert Davis (Physics)
-- Core subjects: Mathematics (`MTH-101`), Physics (`SCI-102`), Computer Science (`CS-103`)
-- Students: Alex Morgan (`ADM-2026-001`), Sophia Patel (`ADM-2026-002`), Liam Chen (`ADM-2026-003`)
-- Attendance records, examinations, and fee structures
+To seed initial demo academic classes, subjects, faculty, demo students, and role accounts:
+```powershell
+cd backend
+npm run seed
+```
 
 ---
 
@@ -121,16 +115,17 @@ This seeds:
 ### Terminal 1: Backend API Server
 ```powershell
 cd backend
-node src/server.js
+npm run dev
 ```
-*API server runs on **`http://localhost:8888`**.*
+- API server listens on: **`http://localhost:8888`**
+- Health check endpoint: **`http://localhost:8888/api/health`**
 
 ### Terminal 2: Frontend Vite Dev Server
 ```powershell
 cd frontend
 npm run dev
 ```
-*Application runs on **`http://localhost:3000`**.*
+- Application user interface: **`http://localhost:3000`**
 
 ---
 

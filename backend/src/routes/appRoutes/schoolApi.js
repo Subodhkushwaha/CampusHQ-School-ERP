@@ -67,7 +67,7 @@ router
 
 router
   .route('/attendance/class-report')
-  .get(catchErrors(schoolAttendanceController.getClassAttendanceReport));
+  .get(permit('admin', 'principal', 'teacher'), catchErrors(schoolAttendanceController.getClassAttendanceReport));
 
 // Exam & Marks endpoints
 router
@@ -102,7 +102,7 @@ router
 // Teacher Workload & Schedule
 router
   .route('/teacher/workload/:teacherId?')
-  .get(catchErrors(schoolTeacherController.getTeacherWorkload));
+  .get(permit('admin', 'principal', 'teacher'), catchErrors(schoolTeacherController.getTeacherWorkload));
 
 // Notices feed
 router.route('/notice/feed').get(catchErrors(schoolNoticeController.getNoticeFeed));

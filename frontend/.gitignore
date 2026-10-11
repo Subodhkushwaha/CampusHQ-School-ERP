@@ -15,6 +15,10 @@ node_modules/
 !.env.example
 *.env.local
 temp.env
+*CREDENTIALS*
+CAMPUSHQ_CREDENTIALS_AND_URLS.txt
+powershell.cmd
+powershell.bat
 
 # misc
 .DS_Store

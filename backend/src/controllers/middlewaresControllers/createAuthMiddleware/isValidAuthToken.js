@@ -34,28 +34,36 @@ const isValidAuthToken = async (req, res, next, { userModel, jwtSecret = 'JWT_SE
 
     const [user, userPassword] = await Promise.all([userPromise, userPasswordPromise]);
 
-    if (!user)
+    if (!user) {
       return res.status(401).json({
         success: false,
         result: null,
-        message: "User doens't Exist, authorization denied.",
+        message: "User doesn't exist, authorization denied.",
         jwtExpired: true,
       });
-
-    const { loggedSessions } = userPassword;
-
-    if (!loggedSessions.includes(token))
-      return res.status(401).json({
-        success: false,
-        result: null,
-        message: 'User is already logout try to login, authorization denied.',
-        jwtExpired: true,
-      });
-    else {
-      const reqUserName = userModel.toLowerCase();
-      req[reqUserName] = user;
-      next();
     }
+
+    if (!user.enabled) {
+      return res.status(403).json({
+        success: false,
+        result: null,
+        message: 'Account is disabled. Please contact administrator.',
+        jwtExpired: true,
+      });
+    }
+
+    if (!userPassword || !Array.isArray(userPassword.loggedSessions) || !userPassword.loggedSessions.includes(token)) {
+      return res.status(401).json({
+        success: false,
+        result: null,
+        message: 'Session has ended or token was revoked, please log in again.',
+        jwtExpired: true,
+      });
+    }
+
+    const reqUserName = userModel.toLowerCase();
+    req[reqUserName] = user;
+    next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
       return res.status(401).json({

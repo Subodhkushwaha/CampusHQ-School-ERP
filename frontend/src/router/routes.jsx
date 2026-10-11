@@ -119,6 +119,55 @@ let routes = {
       path: '/school/import',
       element: <BulkImportHub />,
     },
+    // Direct URL Aliases
+    {
+      path: '/attendance',
+      element: <Navigate to="/school/attendance" replace />,
+    },
+    {
+      path: '/students',
+      element: <Navigate to="/school/students" replace />,
+    },
+    {
+      path: '/teachers',
+      element: <Navigate to="/school/teachers" replace />,
+    },
+    {
+      path: '/classes',
+      element: <Navigate to="/school/classes" replace />,
+    },
+    {
+      path: '/exams',
+      element: <Navigate to="/school/exams" replace />,
+    },
+    {
+      path: '/fees',
+      element: <Navigate to="/school/fees" replace />,
+    },
+    {
+      path: '/notices',
+      element: <Navigate to="/school/notices" replace />,
+    },
+    {
+      path: '/timetable',
+      element: <Navigate to="/school/timetable" replace />,
+    },
+    {
+      path: '/reports',
+      element: <Navigate to="/school/reports" replace />,
+    },
+    {
+      path: '/student-portal',
+      element: <Navigate to="/school/student-portal" replace />,
+    },
+    {
+      path: '/parent-portal',
+      element: <Navigate to="/school/parent-portal" replace />,
+    },
+    {
+      path: '/import',
+      element: <Navigate to="/school/import" replace />,
+    },
     {
       path: '/dashboard',
       element: <Dashboard />,

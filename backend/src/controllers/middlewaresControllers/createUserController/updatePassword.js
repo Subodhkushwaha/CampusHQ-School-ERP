@@ -8,54 +8,74 @@ const updatePassword = async (userModel, req, res) => {
   const reqUserName = userModel.toLowerCase();
   const userProfile = req[reqUserName];
 
-  let { password } = req.body;
-
-  if (password.length < 8)
-    return res.status(400).json({
-      msg: 'The password needs to be at least 8 characters long.',
+  if (!userProfile) {
+    return res.status(401).json({
+      success: false,
+      result: null,
+      message: 'Authentication required.',
     });
+  }
 
-  // Find document by id and updates with the required fields
+  const targetUserId = req.params.id;
 
-  if (userProfile.email === 'admin@admin.com') {
+  if (!targetUserId || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+    return res.status(400).json({
+      success: false,
+      result: null,
+      message: 'Invalid target user ID format.',
+    });
+  }
+
+  // Authorization check: only self or super admin/owner can change user password
+  const isSelf = userProfile._id.toString() === targetUserId.toString();
+  const isSuperAdmin = userProfile.role === 'owner' || userProfile.role === 'admin';
+  if (!isSelf && !isSuperAdmin) {
     return res.status(403).json({
       success: false,
       result: null,
-      message: "you couldn't update demo password",
+      message: 'Access denied: You are not authorized to update passwords for other accounts.',
+    });
+  }
+
+  let { password } = req.body;
+
+  if (!password || password.length < 8) {
+    return res.status(400).json({
+      success: false,
+      result: null,
+      message: 'The password needs to be at least 8 characters long.',
     });
   }
 
   const salt = uniqueId();
-
   const passwordHash = bcrypt.hashSync(salt + password);
 
   const UserPasswordData = {
     password: passwordHash,
     salt: salt,
+    loggedSessions: [], // Invalidate previous sessions upon password reset for security
   };
 
   const resultPassword = await UserPassword.findOneAndUpdate(
-    { user: req.params.id, removed: false },
+    { user: targetUserId, removed: false },
     { $set: UserPasswordData },
     {
-      new: true, // return the new result instead of the old one
+      new: true,
     }
   ).exec();
 
-  // Code to handle the successful response
-
   if (!resultPassword) {
-    return res.status(403).json({
+    return res.status(404).json({
       success: false,
       result: null,
-      message: "User Password couldn't save correctly",
+      message: 'User password record not found.',
     });
   }
 
   return res.status(200).json({
     success: true,
     result: {},
-    message: 'we update the password by this id: ' + userProfile._id,
+    message: 'Password updated successfully.',
   });
 };
 

@@ -19,8 +19,10 @@ function includeToken() {
   axios.defaults.withCredentials = true;
   const auth = storePersist.get('auth');
 
-  if (auth) {
+  if (auth && auth.current && auth.current.token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${auth.current.token}`;
+  } else {
+    delete axios.defaults.headers.common['Authorization'];
   }
 }
 

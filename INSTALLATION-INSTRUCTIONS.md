@@ -1,132 +1,91 @@
-## Getting started
+# 🏫 CampusHQ School ERP — Installation & Local Setup Guide
 
-#### Step 1: Clone the repository
+Follow this guide to install, configure, verify, and run CampusHQ School ERP locally.
 
-```bash
-git clone https://github.com/idurar/idurar-erp-crm.git
-```
+---
 
-```bash
-cd idurar-erp-crm
-```
+### Prerequisites
 
-#### Step 2: Create Your MongoDB Account and Database Cluster
+- **Node.js:** Node.js v20.0.0 or higher
+- **npm:** npm v9.0.0 or higher
+- **MongoDB:** MongoDB Community Server (local) or MongoDB Atlas connection string
 
-- Create your own MongoDB account by visiting the MongoDB website and signing up for a new account.
+---
 
-- Create a new database or cluster by following the instructions provided in the MongoDB documentation. Remember to note down the "Connect to your application URI" for the database, as you will need it later. Also, make sure to change `<password>` with your own password
+### Step 1: Install Dependencies
 
-- add your current IP address to the MongoDB database's IP whitelist to allow connections (this is needed whenever your ip changes)
-
-#### Step 3: Edit the Environment File
-
-- Check a file named .env in the /backend directory.
-
-  This file will store environment variables for the project to run.
-
-#### Step 4: Update MongoDB URI
-
-In the .env file, find the line that reads:
-
-`DATABASE="your-mongodb-uri"`
-
-Replace "your-mongodb-uri" with the actual URI of your MongoDB database.
-
-#### Step 5: Install Backend Dependencies
-
-In your terminal, navigate to the /backend directory
-
+#### 1. Backend Dependencies
 ```bash
 cd backend
-```
-
-the urn the following command to install the backend dependencies:
-
-```bash
 npm install
 ```
 
-This command will install all the required packages specified in the package.json file.
-
-#### Step 6: Run Setup Script
-
-While still in the /backend directory of the project, execute the following command to run the setup script:
-
+#### 2. Frontend Dependencies
 ```bash
-npm run setup
+cd ../frontend
+npm install
 ```
 
-This setup script may perform necessary database migrations or any other initialization tasks required for the project.
+---
 
-#### Step 7: Run the Backend Server
+### Step 2: Configure Environment Variables
 
-In the same terminal, run the following command to start the backend server:
+#### Backend (`backend/.env`)
+Ensure `backend/.env` is set up with valid database and security configuration:
+```env
+PORT=8888
+DATABASE=mongodb://127.0.0.1:27017/campushq
+JWT_SECRET=your_secure_random_64_char_jwt_secret_key_here
+FRONTEND_URL=http://localhost:3000,http://127.0.0.1:3000
+NODE_ENV=development
+WEBSITE_URL=http://localhost:3000
+PUBLIC_SERVER_FILE=http://localhost:8888/
+```
+*(A safe reference template is provided at `backend/.env.example`)*
 
+#### Frontend (`frontend/.env`)
+Ensure `frontend/.env` points to your backend instance:
+```env
+VITE_BACKEND_SERVER=http://localhost:8888
+VITE_FILE_BASE_URL=http://localhost:8888
+```
+*(A safe reference template is provided at `frontend/.env.example`)*
+
+---
+
+### Step 3: Run Automated Verification Tests
+
+Run the security and integration test suite to verify token security, RBAC policies, and validation:
 ```bash
+cd backend
+npm test
+```
+
+---
+
+### Step 4: Seed Development Data (Optional)
+
+If starting with an empty database, seed initial academic classes, sections, subjects, faculty, students, and demo accounts:
+```bash
+cd backend
+npm run seed
+```
+
+---
+
+### Step 5: Start the Application
+
+#### Terminal 1 — Start the Backend Server:
+```bash
+cd backend
 npm run dev
 ```
+- API server listens on: **`http://localhost:8888`**
+- Health check endpoint: **`http://localhost:8888/api/health`**
 
-This command will start the backend server, and it will listen for incoming requests.
-
-#### Step 8: Install Frontend Dependencies
-
-Open a new terminal window , and run the following command to install the frontend dependencies:
-
+#### Terminal 2 — Start the Frontend Development Server:
 ```bash
 cd frontend
-```
-
-```bash
-npm install
-```
-
-#### Step 9: Run the Frontend Server
-
-After installing the frontend dependencies, run the following command in the same terminal to start the frontend server:
-
-```bash
 npm run dev
 ```
-
-This command will start the frontend server, and you'll be able to access the website on localhost:3000 in your web browser.
-
-:exclamation: :warning:` If you encounter an OpenSSL error while running the frontend server, follow these additional steps:`
-
-Reason behind error: This is caused by the node.js V17 compatible issues with OpenSSL, see [this](https://github.com/nodejs/node/issues/40547) and [this](https://github.com/webpack/webpack/issues/14532) issue on GitHub.
-
-
-Try one of these and error will be solved
-
-- > upgrade to Node.js v20.
-
-- > Enable legacy OpenSSL provider
-
-Here is how you can enable legacy OpenSSL provider
-
-- On Unix-like (Linux, macOS, Git bash, etc.)
-
-```bash
-export NODE_OPTIONS=--openssl-legacy-provider
-```
-
-- On Windows command prompt:
-
-```bash
-set NODE_OPTIONS=--openssl-legacy-provider
-```
-
-- On PowerShell:
-
-```bash
-$env:NODE_OPTIONS = "--openssl-legacy-provider"
-```
-
-Here is [reference](https://github.com/webpack/webpack/issues/14532#issuecomment-947012063) about enabling legacy OpenSSL provider
-
-After trying above solutions, run below command
-
-```bash
-npm run dev
-```
-
-> If you still facing issue, then follow [this stackoverflow thread](https://stackoverflow.com/questions/69692842/error-message-error0308010cdigital-envelope-routinesunsupported). It has so many different types of opinions. You definitely have solution after going through the thread.
+- Access the web application in your browser: **`http://localhost:3000`**

@@ -1,60 +1,33 @@
 const mongoose = require('mongoose');
-const path = require('path');
-const fs = require('fs');
-
-let mongodInstance = null;
 
 async function connectDB() {
-  const dbUri = process.env.DATABASE || 'mongodb://127.0.0.1:27017/idurar';
+  const dbUri = process.env.DATABASE;
+
+  if (!dbUri) {
+    const errorMsg =
+      'Configuration Error: DATABASE environment variable is not defined.\n' +
+      'Please set DATABASE in backend/.env to a valid MongoDB connection string.\n' +
+      'Example: DATABASE="mongodb://127.0.0.1:27017/campushq" or a MongoDB Atlas URI.';
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 
   const isProduction = process.env.NODE_ENV === 'production';
-  const timeoutMs = isProduction ? 15000 : 5000;
+  const timeoutMs = isProduction ? 15000 : 10000;
 
   try {
     await mongoose.connect(dbUri, { serverSelectionTimeoutMS: timeoutMs });
-    // Mask credentials in logged URI
+    // Mask password in logged URI for security
     const sanitizedUri = dbUri.replace(/:([^:@]+)@/, ':****@');
     console.log(`Connected to MongoDB successfully at ${sanitizedUri}`);
-    return;
   } catch (err) {
-    if (isProduction) {
-      console.error(`Production Database Connection Failed: ${err.message}`);
-      throw new Error(`Failed to connect to MongoDB in production: ${err.message}`);
-    }
-    console.warn(
-      `Could not connect to external MongoDB at ${dbUri} (${err.message}). Initializing local embedded MongoDB...`
-    );
-  }
-
-  try {
-    const { MongoMemoryServer } = require('mongodb-memory-server');
-    const dataDir = path.resolve(__dirname, '../data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    try {
-      mongodInstance = await MongoMemoryServer.create({
-        instance: {
-          port: 27017,
-          dbPath: dataDir,
-        },
-      });
-    } catch {
-      mongodInstance = await MongoMemoryServer.create({
-        instance: {
-          dbPath: dataDir,
-        },
-      });
-    }
-
-    const embeddedUri = mongodInstance.getUri() + 'idurar';
-    process.env.DATABASE = embeddedUri;
-    await mongoose.connect(embeddedUri);
-    console.log(`Connected to local embedded MongoDB at ${embeddedUri}`);
-  } catch (embeddedErr) {
-    console.error('Failed to start embedded MongoDB:', embeddedErr.message);
-    throw embeddedErr;
+    const sanitizedUri = dbUri.replace(/:([^:@]+)@/, ':****@');
+    const failureMsg =
+      `Database Connection Failed: Unable to connect to MongoDB at ${sanitizedUri}.\n` +
+      `Error: ${err.message}\n` +
+      `Please ensure your MongoDB instance is running or your Atlas connection string and network whitelist are correct.`;
+    console.error(failureMsg);
+    throw new Error(failureMsg);
   }
 }
 

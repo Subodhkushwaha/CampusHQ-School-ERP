@@ -3,22 +3,34 @@ const mongoose = require('mongoose');
 const { globSync } = require('glob');
 const path = require('path');
 
-const connectDB = require('./connectDB');
-
-// Make sure we are running node 7.6+
-const [major, minor] = process.versions.node.split('.').map(parseFloat);
+// Make sure we are running node 20+
+const [major] = process.versions.node.split('.').map(parseFloat);
 if (major < 20) {
-  console.log('Please upgrade your node.js version at least 20 or greater. 👌\n ');
-  process.exit();
+  console.error('Please upgrade your node.js version to at least 20 or greater. Current version:', process.version);
+  process.exit(1);
 }
 
-// import environmental variables from our variables.env file
+// import environmental variables from our environment files
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
 require('dotenv').config({ path: '.env' });
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Validate critical required environment variables
+if (!process.env.DATABASE) {
+  console.error('CRITICAL STARTUP ERROR: DATABASE environment variable is required.');
+  console.error('Please provide a valid MongoDB connection string in backend/.env');
+  process.exit(1);
+}
 
+if (!process.env.JWT_SECRET) {
+  console.error('CRITICAL STARTUP ERROR: JWT_SECRET environment variable is required.');
+  console.error('Please define a secure random JWT_SECRET in backend/.env');
+  process.exit(1);
+}
+
+const connectDB = require('./connectDB');
+
+// Load all database models before controllers
 const modelsFiles = globSync(path.join(__dirname, 'models/**/*.js').replace(/\\/g, '/'));
 
 for (const filePath of modelsFiles) {
@@ -26,15 +38,20 @@ for (const filePath of modelsFiles) {
 }
 
 async function startServer() {
-  await connectDB();
+  try {
+    await connectDB();
 
-  // Start our app!
-  const app = require('./app');
-  const port = process.env.PORT || 8888;
-  app.set('port', port);
-  const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`Express running → On PORT : ${server.address().port}`);
-  });
+    // Start our app!
+    const app = require('./app');
+    const port = process.env.PORT || 8888;
+    app.set('port', port);
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`Express running → On PORT : ${server.address().port}`);
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err.message);
+    process.exit(1);
+  }
 }
 
 startServer();

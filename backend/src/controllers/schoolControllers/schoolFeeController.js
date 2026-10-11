@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const getStudentBalance = async (req, res) => {
   try {
@@ -35,7 +36,16 @@ const getStudentBalance = async (req, res) => {
       });
     }
 
-    const student = await Student.findOne({ _id: studentId, removed: false });
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Student ID format.',
+      });
+    }
+
+    const student = await Student.findOne({ _id: studentId, removed: false }).populate(
+      'schoolClass section'
+    );
     if (!student) {
       return res.status(404).json({
         success: false,
@@ -63,7 +73,8 @@ const getStudentBalance = async (req, res) => {
     }).sort({ paymentDate: -1 });
 
     const totalFees = feeStructures.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-    const totalConcessions = feeStructures.reduce((acc, curr) => acc + (curr.concessionAmount || 0), 0) +
+    const totalConcessions =
+      feeStructures.reduce((acc, curr) => acc + (curr.concessionAmount || 0), 0) +
       payments.reduce((acc, curr) => acc + (curr.concessionApplied || 0), 0);
     const totalPaid = payments.reduce((acc, curr) => acc + (curr.amountPaid || 0), 0);
     const netFees = Math.max(0, totalFees - totalConcessions);
@@ -96,7 +107,9 @@ const getDefaulters = async (req, res) => {
     const FeeStructure = mongoose.model('FeeStructure');
     const FeePayment = mongoose.model('FeePayment');
 
-    const students = await Student.find({ removed: false, status: 'active' });
+    const students = await Student.find({ removed: false, status: 'active' }).populate(
+      'schoolClass section'
+    );
     const allStructures = await FeeStructure.find({ removed: false });
     const allPayments = await FeePayment.find({
       removed: false,
@@ -145,6 +158,9 @@ const getDefaulters = async (req, res) => {
 const recordFeePayment = async (req, res) => {
   try {
     const FeePayment = mongoose.model('FeePayment');
+    const FeeStructure = mongoose.model('FeeStructure');
+    const Student = mongoose.model('Student');
+
     const {
       student,
       feeStructure,
@@ -152,14 +168,23 @@ const recordFeePayment = async (req, res) => {
       paymentMethod,
       transactionReference,
       concessionApplied,
-      status = 'Paid',
       remarks,
     } = req.body;
 
     if (!student || !feeStructure || amountPaid === undefined || amountPaid === null) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required payment fields: student, feeStructure, or amountPaid.',
+        message: 'Missing required payment fields: student, feeStructure, and amountPaid.',
+      });
+    }
+
+    if (
+      !mongoose.Types.ObjectId.isValid(student) ||
+      !mongoose.Types.ObjectId.isValid(feeStructure)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ObjectId format for student or feeStructure.',
       });
     }
 
@@ -171,21 +196,44 @@ const recordFeePayment = async (req, res) => {
       });
     }
 
+    // Verify student and feeStructure exist
+    const [existingStudent, existingFeeStructure] = await Promise.all([
+      Student.findOne({ _id: student, removed: false }),
+      FeeStructure.findOne({ _id: feeStructure, removed: false }),
+    ]);
+
+    if (!existingStudent) {
+      return res.status(404).json({ success: false, message: 'Student record not found.' });
+    }
+    if (!existingFeeStructure) {
+      return res.status(404).json({ success: false, message: 'Fee structure not found.' });
+    }
+
+    const validConcession = Math.max(0, Number(concessionApplied) || 0);
+
+    // Server-enforced payment status: prevent manipulation
+    const expectedFeeAmount = existingFeeStructure.amount || 0;
+    const isFullSettlement = numAmount + validConcession >= expectedFeeAmount;
+    const calculatedStatus = isFullSettlement ? 'Paid' : 'Partial';
+
+    // Generate collision-resistant unique receipt number
     const count = await FeePayment.countDocuments();
-    const timestampPart = Date.now().toString().slice(-4);
-    const receiptNumber = `RCP-2026-${String(count + 1).padStart(4, '0')}-${timestampPart}`;
+    const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const receiptNumber = `RCP-2026-${String(count + 1).padStart(4, '0')}-${randomSuffix}`;
 
     const newPayment = await new FeePayment({
       receiptNumber,
       student,
       feeStructure,
-      amountPaid: Number(amountPaid),
-      concessionApplied: Number(concessionApplied) || 0,
-      paymentMethod: paymentMethod || 'Online Portal',
-      transactionReference: transactionReference || `TXN-${Date.now().toString().slice(-8)}`,
-      remarks,
+      amountPaid: numAmount,
+      concessionApplied: validConcession,
+      paymentMethod: paymentMethod || 'Cash',
+      transactionReference:
+        transactionReference || `TXN-${Date.now().toString().slice(-6)}-${randomSuffix}`,
+      remarks: remarks || '',
       collectedBy: req.admin?._id,
-      status: status || 'Paid',
+      status: calculatedStatus,
+      paymentDate: new Date(),
     }).save();
 
     return res.status(200).json({
@@ -207,7 +255,11 @@ const refundFeePayment = async (req, res) => {
     const { id } = req.params;
     const { refundReason } = req.body;
 
-    const payment = await FeePayment.findById(id);
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid payment ID format.' });
+    }
+
+    const payment = await FeePayment.findOne({ _id: id, removed: false });
     if (!payment) {
       return res.status(404).json({ success: false, message: 'Fee payment not found.' });
     }
@@ -218,7 +270,7 @@ const refundFeePayment = async (req, res) => {
 
     payment.status = 'Refunded';
     payment.refundDate = new Date();
-    payment.refundReason = refundReason || 'Requested refund approved by Accounts.';
+    payment.refundReason = refundReason || 'Refund authorized by Accounts.';
     await payment.save();
 
     return res.status(200).json({
@@ -239,11 +291,23 @@ const getCollectionReport = async (req, res) => {
     const FeePayment = mongoose.model('FeePayment');
     const { startDate, endDate, schoolClass } = req.query;
 
+    if (schoolClass && !mongoose.Types.ObjectId.isValid(schoolClass)) {
+      return res.status(400).json({ success: false, message: 'Invalid schoolClass ID format.' });
+    }
+
     const query = { removed: false, status: { $in: ['Paid', 'Partial'] } };
     if (startDate || endDate) {
       query.paymentDate = {};
-      if (startDate) query.paymentDate.$gte = new Date(startDate);
-      if (endDate) query.paymentDate.$lte = new Date(endDate);
+      if (startDate) {
+        const sDate = new Date(startDate);
+        if (isNaN(sDate.getTime())) return res.status(400).json({ success: false, message: 'Invalid startDate format.' });
+        query.paymentDate.$gte = sDate;
+      }
+      if (endDate) {
+        const eDate = new Date(endDate);
+        if (isNaN(eDate.getTime())) return res.status(400).json({ success: false, message: 'Invalid endDate format.' });
+        query.paymentDate.$lte = eDate;
+      }
     }
 
     let payments = await FeePayment.find(query).populate('student feeStructure');

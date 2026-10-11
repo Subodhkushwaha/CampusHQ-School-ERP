@@ -3,29 +3,88 @@ const mongoose = require('mongoose');
 const bulkSaveMarks = async (req, res) => {
   try {
     const ExamResult = mongoose.model('ExamResult');
+    const Exam = mongoose.model('Exam');
+    const Subject = mongoose.model('Subject');
+    const Student = mongoose.model('Student');
+
     const { exam, schoolClass, section, subject, records } = req.body;
 
-    if (!exam || !schoolClass || !subject || !Array.isArray(records)) {
+    if (!exam || !schoolClass || !subject || !Array.isArray(records) || records.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: exam, schoolClass, subject, records.',
+        message: 'Missing required fields: exam, schoolClass, subject, and a non-empty records array.',
       });
     }
 
-    // Role verification: If teacher, verify assignment to subject
+    if (
+      !mongoose.Types.ObjectId.isValid(exam) ||
+      !mongoose.Types.ObjectId.isValid(schoolClass) ||
+      !mongoose.Types.ObjectId.isValid(subject) ||
+      (section && !mongoose.Types.ObjectId.isValid(section))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ObjectId format for exam, schoolClass, subject, or section.',
+      });
+    }
+
+    // Verify exam and subject exist
+    const [existingExam, existingSubject] = await Promise.all([
+      Exam.findOne({ _id: exam, removed: false }),
+      Subject.findOne({ _id: subject, removed: false }),
+    ]);
+
+    if (!existingExam) {
+      return res.status(404).json({ success: false, message: 'Examination not found.' });
+    }
+    if (!existingSubject) {
+      return res.status(404).json({ success: false, message: 'Subject not found.' });
+    }
+
+    // Role verification: If teacher, verify assignment to subject or class
     if (req.admin?.role === 'teacher') {
       const Teacher = mongoose.model('Teacher');
       const teacher = await Teacher.findById(req.admin.teacherRef || req.admin._id);
-      const isAssigned = teacher && (
-        teacher.assignedSubjects?.some((s) => s.toString() === subject.toString()) ||
-        teacher.assignedClasses?.some((c) => c.toString() === schoolClass.toString())
-      );
+      const isAssigned =
+        teacher &&
+        (teacher.assignedSubjects?.some((s) => s.toString() === subject.toString()) ||
+          teacher.assignedClasses?.some((c) => c.toString() === schoolClass.toString()));
       if (!isAssigned) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied: You are not assigned to instruct this subject.',
+          message: 'Access denied: You are not assigned to instruct this subject or class.',
         });
       }
+    }
+
+    // Validate student membership in class (and section if provided)
+    const studentIds = records.map((r) => r.student).filter(Boolean);
+    for (const sId of studentIds) {
+      if (!mongoose.Types.ObjectId.isValid(sId)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid student ID format: ${sId}`,
+        });
+      }
+    }
+
+    const membershipQuery = {
+      _id: { $in: studentIds },
+      schoolClass,
+      removed: false,
+    };
+    if (section) membershipQuery.section = section;
+
+    const validStudents = await Student.find(membershipQuery).select('_id');
+    const validStudentSet = new Set(validStudents.map((s) => s._id.toString()));
+    const invalidStudents = studentIds.filter((id) => !validStudentSet.has(id.toString()));
+
+    if (invalidStudents.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Validation Error: ${invalidStudents.length} student(s) do not belong to the specified class/section.`,
+        invalidStudentIds: invalidStudents,
+      });
     }
 
     const saved = [];
@@ -33,7 +92,11 @@ const bulkSaveMarks = async (req, res) => {
       if (!item.student) continue;
 
       const maxMarks = Number(item.maxMarks) || 100;
-      let marksObtained = Number(item.marksObtained) || 0;
+      let marksObtained = Number(item.marksObtained);
+
+      if (isNaN(marksObtained)) {
+        marksObtained = 0;
+      }
 
       // Validate bounds
       if (marksObtained < 0 || marksObtained > maxMarks) {
@@ -50,7 +113,7 @@ const bulkSaveMarks = async (req, res) => {
         marksObtained = 0;
         grade = 'AB';
       } else {
-        const percent = (marksObtained / maxMarks) * 100;
+        const percent = maxMarks > 0 ? (marksObtained / maxMarks) * 100 : 0;
         if (percent >= 90) grade = 'A+';
         else if (percent >= 80) grade = 'A';
         else if (percent >= 70) grade = 'B';
@@ -131,7 +194,26 @@ const getStudentReportCard = async (req, res) => {
       });
     }
 
-    const student = await Student.findOne({ _id: studentId, removed: false });
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Student ID format.',
+      });
+    }
+
+    const student = await Student.findOne({ _id: studentId, removed: false }).populate(
+      'schoolClass section'
+    );
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Student record not found.' });
+    }
+
+    // Safely extract examId from query parameters
+    const examId = req.query?.examId;
+    if (examId && !mongoose.Types.ObjectId.isValid(examId)) {
+      return res.status(400).json({ success: false, message: 'Invalid exam ID format.' });
+    }
+
     const query = { student: studentId, removed: false, isPublished: true };
     if (examId) query.exam = examId;
 
@@ -140,8 +222,8 @@ const getStudentReportCard = async (req, res) => {
     let totalObtained = 0;
     let totalMax = 0;
     results.forEach((r) => {
-      totalObtained += r.marksObtained;
-      totalMax += r.maxMarks;
+      totalObtained += Number(r.marksObtained) || 0;
+      totalMax += Number(r.maxMarks) || 0;
     });
 
     const percentage = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : 0;

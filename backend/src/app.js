@@ -24,6 +24,8 @@ const mongoose = require('mongoose');
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
   'http://localhost:8888',
   'http://127.0.0.1:8888',
 ];
@@ -39,20 +41,19 @@ if (process.env.WEBSITE_URL) {
   });
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (
-      allowedOrigins.indexOf(origin) !== -1 ||
-      origin.endsWith('.vercel.app') ||
-      origin.endsWith('.onrender.com') ||
-      origin.endsWith('.lhr.life') ||
-      origin.endsWith('.loca.lt') ||
-      process.env.NODE_ENV !== 'production'
-    ) {
+    if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     }
-    return callback(null, false);
+    // In local development, permit local development origins
+    if (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS Error: Origin '${origin}' is not authorized by CORS policy.`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
