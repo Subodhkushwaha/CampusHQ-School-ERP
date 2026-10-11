@@ -130,12 +130,13 @@ async function runDiagnostic() {
     console.error('      Verify your Atlas cluster hostname or check your DNS / internet configuration.');
   }
 
-  // 4. Mongoose / Atlas Connection Test
-  console.log('\n[4] Attempting Live Connection to MongoDB Cluster (timeout: 10s)...');
+  const targetDbName = process.env.DB_NAME || (parsed.database && parsed.database.toLowerCase() !== 'test' ? parsed.database : 'campushq');
+  console.log(`\n[4] Attempting Live Connection to MongoDB Cluster (database: "${targetDbName}", timeout: 10s)...`);
   const startTime = Date.now();
 
   try {
     await mongoose.connect(rawUri, {
+      dbName: targetDbName,
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
     });

@@ -28,18 +28,24 @@ async function connectDB() {
 
   // Extract host and database name safely
   let hostInfo = 'unknown';
-  let dbName = 'default';
+  let dbNameFromUri = null;
   try {
     const match = dbUri.match(/@([^\/?#]+)(?:\/([^?#]*))?/);
     if (match) {
       hostInfo = match[1];
-      dbName = match[2] || 'test (unspecified)';
+      if (match[2] && match[2].trim() && match[2].trim().toLowerCase() !== 'test') {
+        dbNameFromUri = match[2].trim();
+      }
     }
   } catch (_) {}
 
-  console.log(`Attempting MongoDB connection to host: ${hostInfo}, database: ${dbName}...`);
+  // Ensure database is always 'campushq' unless explicitly overridden by DB_NAME env var
+  const targetDbName = process.env.DB_NAME || dbNameFromUri || 'campushq';
+
+  console.log(`Attempting MongoDB connection to host: ${hostInfo}, database: ${targetDbName}...`);
 
   const mongooseOptions = {
+    dbName: targetDbName,
     serverSelectionTimeoutMS: timeoutMs,
     socketTimeoutMS: 45000,
     maxPoolSize: isProduction ? 20 : 10,
@@ -61,7 +67,7 @@ async function connectDB() {
     console.error('\n' + '='.repeat(68));
     console.error(`DATABASE CONNECTION FAILED: Unable to connect to MongoDB`);
     console.error(`Target Host:     ${hostInfo}`);
-    console.error(`Target Database: ${dbName}`);
+    console.error(`Target Database: ${targetDbName}`);
     console.error(`Sanitized URI:   ${sanitizedUri}`);
     console.error(`Error Name:      ${err.name}`);
     console.error(`Error Details:   ${err.message}`);
