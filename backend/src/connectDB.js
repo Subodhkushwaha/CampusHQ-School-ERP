@@ -198,6 +198,11 @@ async function runActiveDiagnostics(host) {
     console.error(`[3. TLS HANDSHAKE]: SUCCESS (TLS encryption established)`);
   } else {
     console.error(`[3. TLS HANDSHAKE]: FAILED (${tlsResult.error})`);
+    if (tlsResult.error && tlsResult.error.includes('ALERT_INTERNAL_ERROR')) {
+      console.error('    => ATLAS TLS ALERT 80 (Internal Error):');
+      console.error('       Atlas SNI proxies emit Alert 80 when the source IP is rejected by');
+      console.error('       the cluster\'s Network Access allowlist, or if the cluster is provisioning/inactive.');
+    }
   }
 }
 
