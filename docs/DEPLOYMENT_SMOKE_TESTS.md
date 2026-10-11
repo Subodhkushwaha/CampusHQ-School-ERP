@@ -10,9 +10,9 @@
 
 | Environment Component | Live Public URL | Protocol | Hosting Provider / Tunnel | Verification Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Frontend Web App** | `https://8c962c727c07f9.lhr.life` | HTTPS / TLS 1.3 | Vite Production Preview + Secure Tunnel | **ACTIVE (200 OK)** |
+| **Frontend Web App** | `https://d60d0bdc63ccfa.lhr.life` | HTTPS / TLS 1.3 | Vite Production Preview + Secure Tunnel | **ACTIVE (200 OK)** |
 | **Vercel CDN Deployment** | `https://temporary-rapid-fjord-4794ao4.vercel.app` | HTTPS / CDN | Vercel Global Edge Network | **ACTIVE (200 OK)** |
-| **Backend REST API** | `https://973f30ce3f7a48.lhr.life` | HTTPS / TLS 1.3 | Node.js Express Server + Secure Tunnel | **ACTIVE (200 OK)** |
+| **Backend REST API** | `https://ebdf9bcaf14e25.lhr.life` | HTTPS / TLS 1.3 | Node.js Express Server + Secure Tunnel | **ACTIVE (200 OK)** |
 | **Database Cluster** | MongoDB Atlas Replica Set (Cluster 0) | TLS Encrypted | MongoDB Atlas AWS us-east-1 | **CONNECTED** |
 
 ---
@@ -74,7 +74,23 @@
 
 ### Test 5: Production Build Compilation
 - **Command:** `npm run build`
-- **Modules Processed:** 3,636 modules transformed cleanly in 10.21s
+- **Modules Processed:** 3,636 modules transformed cleanly in 10.60s
 - **Assets Generated:** `dist/index.html`, minified JS and CSS bundles
 - **Build Exit Code:** `0 (Success)`
 - **Verdict:** **PASS**
+
+### Test 6: Playwright Automated Headless Browser Execution
+- **Command:** `node backend/src/tests/browser_e2e_suite.js`
+- **Engine:** Google Chrome Headless (System Channel via `playwright-core`)
+- **Scenarios Verified:**
+  1. Login Page Loading & DOM Elements (`E2E-01`): PASS
+  2. Rejection of Invalid Credentials (`E2E-02`): PASS
+  3. Admin Login & SPA Redirection to Dashboard (`E2E-03`): PASS
+  4. Teacher Login & Faculty Hub Access (`E2E-04`): PASS
+  5. Student Portal Authentication (`E2E-05`): PASS
+  6. Parent Portal Linked Child Access (`E2E-06`): PASS
+  7. Accountant Portal Financial Overview (`E2E-07`): PASS
+  8. Unauthenticated Protected Route Redirect to `/login` (`E2E-08`): PASS
+  9. Mobile Viewport (375x667) Responsive Stability (`E2E-09`): PASS
+  10. Tablet Viewport (768x1024) Responsive Layout (`E2E-10`): PASS
+- **Verdict:** **PASS (10/10 Tests Passed, 100%)**
