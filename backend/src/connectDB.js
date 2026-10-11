@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 async function connectDB() {
-  const dbUri = process.env.DATABASE;
+  const dbUri = process.env.DATABASE || process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
 
   if (!dbUri) {
     const errorMsg =

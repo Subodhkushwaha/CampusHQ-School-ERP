@@ -16,9 +16,14 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
 require('dotenv').config({ path: '.env' });
 
 // Validate critical required environment variables
+const dbUri = process.env.DATABASE || process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+if (!process.env.DATABASE && dbUri) {
+  process.env.DATABASE = dbUri;
+}
+
 if (!process.env.DATABASE) {
   console.error('CRITICAL STARTUP ERROR: DATABASE environment variable is required.');
-  console.error('Please provide a valid MongoDB connection string in backend/.env');
+  console.error('Please provide a valid MongoDB connection string in backend/.env or hosting environment (DATABASE or MONGODB_URI).');
   process.exit(1);
 }
 
