@@ -130,6 +130,45 @@ async function runDiagnostic() {
     console.error('      Verify your Atlas cluster hostname or check your DNS / internet configuration.');
   }
 
+  // 3b. Low-Level TCP Port 27017 and TLS Probe
+  console.log('\n[3b] Testing Direct TCP & TLS Handshake (Port 27017)...');
+  const net = require('net');
+  const tls = require('tls');
+  let testNode = parsed.host;
+  try {
+    if (parsed.protocol === 'mongodb+srv') {
+      const srvRecs = await dns.resolveSrv(`_mongodb._tcp.${parsed.host}`);
+      if (srvRecs.length > 0) testNode = srvRecs[0].name;
+    }
+  } catch (_) {}
+
+  const tcpCheck = await new Promise((res) => {
+    const s = new net.Socket();
+    s.setTimeout(4000);
+    s.on('connect', () => { s.destroy(); res({ ok: true }); });
+    s.on('timeout', () => { s.destroy(); res({ ok: false, err: 'ETIMEDOUT (firewall dropped connection)' }); });
+    s.on('error', (e) => { s.destroy(); res({ ok: false, err: e.message }); });
+    s.connect(27017, testNode);
+  });
+
+  if (tcpCheck.ok) {
+    console.log(`   ✅ TCP Port 27017 Reachable on ${testNode}`);
+    const tlsCheck = await new Promise((res) => {
+      const s = tls.connect({ host: testNode, port: 27017, servername: testNode, timeout: 4000, rejectUnauthorized: true });
+      s.on('secureConnect', () => { s.destroy(); res({ ok: true }); });
+      s.on('timeout', () => { s.destroy(); res({ ok: false, err: 'TLS timeout' }); });
+      s.on('error', (e) => { s.destroy(); res({ ok: false, err: e.message }); });
+    });
+    if (tlsCheck.ok) {
+      console.log(`   ✅ TLS Encryption Handshake Successful (port 27017)`);
+    } else {
+      console.error(`   ❌ TLS Handshake Failed: ${tlsCheck.err}`);
+    }
+  } else {
+    console.error(`   ❌ TCP Port 27017 Unreachable on ${testNode}: ${tcpCheck.err}`);
+    console.error('      => Atlas firewall is dropping TCP packets from this host.');
+  }
+
   const targetDbName = process.env.DB_NAME || (parsed.database && parsed.database.toLowerCase() !== 'test' ? parsed.database : 'campushq');
   console.log(`\n[4] Attempting Live Connection to MongoDB Cluster (database: "${targetDbName}", timeout: 10s)...`);
   const startTime = Date.now();

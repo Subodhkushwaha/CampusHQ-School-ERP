@@ -72,6 +72,9 @@ async function connectDB() {
     console.error(`Error Name:      ${err.name}`);
     console.error(`Error Details:   ${err.message}`);
 
+    // Run active deep diagnostic probe to pinpoint exact failure layer
+    await runActiveDiagnostics(hostInfo);
+
     const msg = (err.message || '').toLowerCase();
     const name = err.name || '';
 
@@ -92,7 +95,9 @@ async function connectDB() {
     } else if (
       msg.includes('authentication failed') ||
       msg.includes('bad auth') ||
+      err.code === 8000 ||
       err.code === 18 ||
+      err.codeName === 'AtlasError' ||
       err.codeName === 'AuthenticationFailed'
     ) {
       console.error('\n▶ DIAGNOSIS: DATABASE CREDENTIALS REJECTED');
@@ -103,8 +108,96 @@ async function connectDB() {
       console.error(`  Unable to resolve DNS for cluster host: ${hostInfo}.`);
     }
 
+    if (hostInfo && hostInfo.includes('o3narw1')) {
+      console.error('\n⚠️ NOTICE: Host "cluster0.o3narw1.mongodb.net" is being used.');
+      console.error('  The populated campus database was configured on "cluster0.lmgftc8.mongodb.net".');
+      console.error('  If o3narw1 is an empty or alternate cluster, ensure it has matching credentials and collections.');
+    }
+
     console.error('='.repeat(68) + '\n');
     throw new Error(`Database Connection Failed: ${err.message}`);
+  }
+}
+
+async function runActiveDiagnostics(host) {
+  const dns = require('dns').promises;
+  const net = require('net');
+  const tls = require('tls');
+
+  console.error('\n--- ACTIVE RUNTIME DIAGNOSTIC PROBE ---');
+  let targetNode = host;
+
+  // 1. DNS Probe
+  try {
+    if (host.includes('mongodb.net')) {
+      const srvRecords = await dns.resolveSrv(`_mongodb._tcp.${host}`);
+      if (srvRecords && srvRecords.length > 0) {
+        targetNode = srvRecords[0].name;
+        console.error(`[1. DNS / SRV]:   SUCCESS (${srvRecords.length} nodes resolved, primary test node: ${targetNode})`);
+      }
+    } else {
+      await dns.lookup(host);
+      console.error(`[1. DNS LOOKUP]: SUCCESS (resolved ${host})`);
+    }
+  } catch (dnsErr) {
+    console.error(`[1. DNS / SRV]:   FAILED (${dnsErr.message})`);
+    return;
+  }
+
+  // 2. TCP Port 27017 Socket Probe
+  const tcpResult = await new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(4000);
+    socket.on('connect', () => {
+      socket.destroy();
+      resolve({ success: true });
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve({ success: false, error: 'ETIMEDOUT: Port 27017 connection timed out (firewall drop)' });
+    });
+    socket.on('error', (e) => {
+      socket.destroy();
+      resolve({ success: false, error: `${e.code || 'ERR'}: ${e.message}` });
+    });
+    socket.connect(27017, targetNode);
+  });
+
+  if (tcpResult.success) {
+    console.error(`[2. TCP PORT 27017]: SUCCESS (socket connected to ${targetNode}:27017)`);
+  } else {
+    console.error(`[2. TCP PORT 27017]: FAILED (${tcpResult.error})`);
+    console.error('    => ROOT CAUSE CONFIRMED: Atlas firewall is dropping TCP packets from this host.');
+    return;
+  }
+
+  // 3. TLS Handshake Probe
+  const tlsResult = await new Promise((resolve) => {
+    const socket = tls.connect({
+      host: targetNode,
+      port: 27017,
+      servername: targetNode,
+      timeout: 4000,
+      rejectUnauthorized: true,
+    });
+    socket.on('secureConnect', () => {
+      socket.destroy();
+      resolve({ success: true });
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve({ success: false, error: 'TLS handshake timed out' });
+    });
+    socket.on('error', (e) => {
+      socket.destroy();
+      resolve({ success: false, error: `${e.code || 'ERR'}: ${e.message}` });
+    });
+  });
+
+  if (tlsResult.success) {
+    console.error(`[3. TLS HANDSHAKE]: SUCCESS (TLS encryption established)`);
+  } else {
+    console.error(`[3. TLS HANDSHAKE]: FAILED (${tlsResult.error})`);
   }
 }
 
