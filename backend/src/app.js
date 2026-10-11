@@ -19,6 +19,8 @@ const fileUpload = require('express-fileupload');
 // create our Express app
 const app = express();
 
+const mongoose = require('mongoose');
+
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
@@ -43,16 +45,14 @@ const corsOptions = {
     if (
       allowedOrigins.indexOf(origin) !== -1 ||
       origin.endsWith('.vercel.app') ||
+      origin.endsWith('.onrender.com') ||
       origin.endsWith('.lhr.life') ||
       origin.endsWith('.loca.lt') ||
       process.env.NODE_ENV !== 'production'
     ) {
       return callback(null, true);
     }
-    return callback(
-      new Error('The CORS policy for this site does not allow access from the specified Origin.'),
-      false
-    );
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -62,6 +62,16 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Health check endpoint for Render and uptime monitors
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+  });
+});
 
 app.use(cookieParser());
 app.use(express.json());

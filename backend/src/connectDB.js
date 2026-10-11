@@ -7,11 +7,20 @@ let mongodInstance = null;
 async function connectDB() {
   const dbUri = process.env.DATABASE || 'mongodb://127.0.0.1:27017/idurar';
 
+  const isProduction = process.env.NODE_ENV === 'production';
+  const timeoutMs = isProduction ? 15000 : 5000;
+
   try {
-    await mongoose.connect(dbUri, { serverSelectionTimeoutMS: 2000 });
-    console.log(`Connected to MongoDB at ${dbUri}`);
+    await mongoose.connect(dbUri, { serverSelectionTimeoutMS: timeoutMs });
+    // Mask credentials in logged URI
+    const sanitizedUri = dbUri.replace(/:([^:@]+)@/, ':****@');
+    console.log(`Connected to MongoDB successfully at ${sanitizedUri}`);
     return;
   } catch (err) {
+    if (isProduction) {
+      console.error(`Production Database Connection Failed: ${err.message}`);
+      throw new Error(`Failed to connect to MongoDB in production: ${err.message}`);
+    }
     console.warn(
       `Could not connect to external MongoDB at ${dbUri} (${err.message}). Initializing local embedded MongoDB...`
     );
