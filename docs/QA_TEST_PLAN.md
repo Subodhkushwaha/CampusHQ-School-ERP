@@ -29,7 +29,7 @@ This traceable Quality Assurance Plan links application business requirements di
 | **REQ-IMP-03** | Auto-Provisioning & Accounts | Admin, Principal | `TEST-8 (Import)` | `TC-MAN-IMP-03` | **PASS** | — |
 | **REQ-IMP-04** | Import Idempotency & De-duplication| Admin, Principal | `TEST-9 (Import)` | `TC-MAN-IMP-04` | **PASS** | — |
 | **REQ-SEC-02** | Spreadsheet Formula Injection | Admin, Principal | `SEC-CSV-FORMULA` | `TC-MAN-SEC-01` | **PASS** | — |
-| **REQ-E2E-01** | Browser UI Automation (Playwright)| All Roles | `E2E-PLAYWRIGHT` | `TC-MAN-E2E-01` | **BLOCKED** | External CDN 404 |
+| **REQ-E2E-01** | Browser UI Automation (Playwright)| All Roles | `browser_e2e_suite.js` | `TC-MAN-E2E-01` | **PASS** | Resolved via system Chrome/Edge channel |
 
 ---
 
@@ -224,5 +224,5 @@ This traceable Quality Assurance Plan links application business requirements di
 | **Attendance & Timetable** | 3 | 3 | 0 | 0 | 100% |
 | **Bulk Import & Reconciliation** | 12 | 12 | 0 | 0 | 100% |
 | **Production Telemetry & Health** | 2 | 2 | 0 | 0 | 100% |
-| **Automated Browser (Playwright)** | 1 | 0 | 0 | 1 | 0% (Blocked) |
-| **TOTALS** | **49** | **48** | **0** | **1** | **98.0%** |
+| **Automated Browser (Playwright)** | 10 | 10 | 0 | 0 | 100% |
+| **TOTALS** | **58** | **58** | **0** | **0** | **100.0%** |

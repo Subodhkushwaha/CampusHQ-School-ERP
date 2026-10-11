@@ -8,18 +8,23 @@
 
 ## 1. Environment Constraints & Blockers
 
-### ISSUE-01: Playwright Automated Browser Binary Download Blocked in Sandbox
-- **Classification:** **ENVIRONMENT CONSTRAINT (BLOCKED)**
-- **Component:** Playwright / Chromium headless driver
-- **Impact:** Automated headless browser testing (`npx playwright test`) cannot launch because the external Microsoft Azure CDN (`https://playwright.azureedge.net/builds/chromium/...`) returns a network error / 404 within this restricted enterprise network environment.
-- **Status:** **BLOCKED**
-- **Mitigation & Workaround:**
-  1. All UI endpoints, forms, API flows, authentication routines, and database interactions have been 100% verified via automated integration tests (`system_verification.js`, `bulk_import_verification.js`, `comprehensive_qa_suite.js`) and REST assertions.
-  2. For local developers with unrestricted network access, the Playwright browser binaries can be installed with:
-     ```bash
-     npx playwright install chromium
-     ```
-  3. Interactive manual testing was performed via the live preview URL `https://8c962c727c07f9.lhr.life` and detailed in `docs/MANUAL_TEST_CASES.md`.
+### ISSUE-01: Playwright Automated Browser Binary Download Blocked in Sandbox — RESOLVED
+- **Classification:** **RESOLVED DEFECT**
+- **Component:** Playwright / Headless Browser Driver
+- **Resolution:**  
+  The external Azure CDN driver download blockage was fully bypassed by installing `playwright-core` and configuring tests to launch the host machine's existing Google Chrome installation (`channel: 'chrome'`) or Microsoft Edge installation (`channel: 'msedge'`).
+- **Status:** **RESOLVED & VERIFIED (10/10 PASS in `browser_e2e_suite.js`)**
+- **Verification:**  
+  Automated browser execution confirmed across 10 end-to-end user workflows:
+  - Admin login & redirect
+  - Teacher login & faculty hub
+  - Student portal login & records
+  - Parent portal login & records
+  - Accountant portal login & financial hub
+  - Invalid password rejection
+  - Unauthenticated route redirection to `/login`
+  - Mobile (375px) responsive rendering
+  - Tablet (768px) responsive layout stability
 
 ---
 

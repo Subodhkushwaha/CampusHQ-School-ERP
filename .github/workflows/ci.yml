@@ -28,7 +28,7 @@ jobs:
 
       - name: Verify Backend Syntax & Static Integrity
         working-directory: ./backend
-        run: node -c src/server.js src/app.js src/setup/seedSchoolData.js
+        run: node -c src/server.js src/app.js src/setup/seedSchoolData.js src/tests/comprehensive_qa_suite.js src/tests/browser_e2e_suite.js
 
   frontend-build:
     name: Frontend Production Build & Bundle Verification
