@@ -71,7 +71,28 @@ const bulkMarkAttendance = async (req, res) => {
 const getStudentAttendance = async (req, res) => {
   try {
     const Attendance = mongoose.model('Attendance');
-    const studentId = req.params.studentId || req.admin?.studentRef;
+    const userRole = req.admin?.role;
+
+    // IDOR protection: students and parents may only query their own / linked record
+    if (userRole === 'student') {
+      const allowedId = req.admin?.studentRef?.toString();
+      if (req.params.studentId && req.params.studentId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your own attendance records.',
+        });
+      }
+    } else if (userRole === 'parent') {
+      const allowedId = req.admin?.parentStudentRef?.toString();
+      if (req.params.studentId && req.params.studentId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your linked student attendance records.',
+        });
+      }
+    }
+
+    const studentId = req.params.studentId || req.admin?.studentRef || req.admin?.parentStudentRef;
 
     if (!studentId) {
       return res.status(400).json({

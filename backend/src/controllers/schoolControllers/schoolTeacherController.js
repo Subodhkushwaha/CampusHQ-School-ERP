@@ -4,6 +4,24 @@ const getTeacherWorkload = async (req, res) => {
   try {
     const Teacher = mongoose.model('Teacher');
     const Timetable = mongoose.model('Timetable');
+    const userRole = req.admin?.role;
+
+    // IDOR protection: teachers may only view their own workload; students/parents unauthorized
+    if (userRole === 'teacher') {
+      const allowedId = req.admin?.teacherRef?.toString() || req.admin?._id?.toString();
+      if (req.params.teacherId && req.params.teacherId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your own teaching workload.',
+        });
+      }
+    } else if (['student', 'parent'].includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Role is not authorized to inspect teacher internal workloads.',
+      });
+    }
+
     const teacherId = req.params.teacherId || req.admin?.teacherRef;
 
     if (!teacherId) {

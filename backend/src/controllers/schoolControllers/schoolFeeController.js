@@ -5,7 +5,28 @@ const getStudentBalance = async (req, res) => {
     const Student = mongoose.model('Student');
     const FeeStructure = mongoose.model('FeeStructure');
     const FeePayment = mongoose.model('FeePayment');
-    const studentId = req.params.studentId || req.admin?.studentRef;
+    const userRole = req.admin?.role;
+
+    // IDOR protection: students and parents may only query their own / linked record
+    if (userRole === 'student') {
+      const allowedId = req.admin?.studentRef?.toString();
+      if (req.params.studentId && req.params.studentId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your own balance records.',
+        });
+      }
+    } else if (userRole === 'parent') {
+      const allowedId = req.admin?.parentStudentRef?.toString();
+      if (req.params.studentId && req.params.studentId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your linked student balance records.',
+        });
+      }
+    }
+
+    const studentId = req.params.studentId || req.admin?.studentRef || req.admin?.parentStudentRef;
 
     if (!studentId) {
       return res.status(400).json({
@@ -142,8 +163,17 @@ const recordFeePayment = async (req, res) => {
       });
     }
 
+    const numAmount = Number(amountPaid);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: Payment amount must be a positive number greater than zero.',
+      });
+    }
+
     const count = await FeePayment.countDocuments();
-    const receiptNumber = `RCP-2026-${String(count + 1).padStart(4, '0')}`;
+    const timestampPart = Date.now().toString().slice(-4);
+    const receiptNumber = `RCP-2026-${String(count + 1).padStart(4, '0')}-${timestampPart}`;
 
     const newPayment = await new FeePayment({
       receiptNumber,

@@ -1,6 +1,13 @@
 const permit = (...allowedRoles) => {
   return (req, res, next) => {
-    const userRole = req.admin?.role || 'owner';
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required. Authorization credentials missing.',
+      });
+    }
+
+    const userRole = req.admin.role || 'staff';
 
     // 'owner' (Super Admin) always has full bypass access
     if (userRole === 'owner') {

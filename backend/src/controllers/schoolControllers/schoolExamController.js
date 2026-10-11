@@ -101,8 +101,28 @@ const getStudentReportCard = async (req, res) => {
   try {
     const ExamResult = mongoose.model('ExamResult');
     const Student = mongoose.model('Student');
-    const studentId = req.params.studentId || req.admin?.studentRef;
-    const { examId } = req.query;
+    const userRole = req.admin?.role;
+
+    // IDOR protection: students and parents may only query their own / linked record
+    if (userRole === 'student') {
+      const allowedId = req.admin?.studentRef?.toString();
+      if (req.params.studentId && req.params.studentId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your own report card.',
+        });
+      }
+    } else if (userRole === 'parent') {
+      const allowedId = req.admin?.parentStudentRef?.toString();
+      if (req.params.studentId && req.params.studentId !== allowedId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: You are only authorized to view your linked student report card.',
+        });
+      }
+    }
+
+    const studentId = req.params.studentId || req.admin?.studentRef || req.admin?.parentStudentRef;
 
     if (!studentId) {
       return res.status(400).json({
