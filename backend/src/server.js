@@ -27,6 +27,13 @@ if (!process.env.DATABASE) {
   process.exit(1);
 }
 
+if (!process.env.DATABASE.startsWith('mongodb://') && !process.env.DATABASE.startsWith('mongodb+srv://')) {
+  console.error('CRITICAL STARTUP ERROR: DATABASE environment variable is malformed.');
+  console.error('DATABASE must begin with "mongodb://" or "mongodb+srv://".');
+  console.error('Received format does not match expected MongoDB connection URI.');
+  process.exit(1);
+}
+
 if (!process.env.JWT_SECRET) {
   console.error('CRITICAL STARTUP ERROR: JWT_SECRET environment variable is required.');
   console.error('Please define a secure random JWT_SECRET in backend/.env');
