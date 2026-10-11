@@ -5,7 +5,7 @@ const authUser = async (req, res, { user, databasePassword, password, UserPasswo
   const isMatch = await bcrypt.compare(databasePassword.salt + password, databasePassword.password);
 
   if (!isMatch)
-    return res.status(403).json({
+    return res.status(401).json({
       success: false,
       result: null,
       message: 'Invalid credentials.',
@@ -55,7 +55,7 @@ const authUser = async (req, res, { user, databasePassword, password, UserPasswo
       message: 'Successfully login user',
     });
   } else {
-    return res.status(403).json({
+    return res.status(401).json({
       success: false,
       result: null,
       message: 'Invalid credentials.',
