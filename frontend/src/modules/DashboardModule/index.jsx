@@ -14,6 +14,8 @@ import RecentTable from './components/RecentTable';
 import SummaryCard from './components/SummaryCard';
 import PreviewCard from './components/PreviewCard';
 import CustomerPreviewCard from './components/CustomerPreviewCard';
+import StudentWelcomeBanner from './components/StudentWelcomeBanner';
+import StudentTasksCard from './components/StudentTasksCard';
 
 import { selectMoneyFormat } from '@/redux/settings/selectors';
 import { useSelector } from 'react-redux';
@@ -60,16 +62,16 @@ export default function DashboardModule() {
 
   const dataTableColumns = [
     {
-      title: translate('number'),
+      title: 'Number',
       dataIndex: 'number',
     },
     {
-      title: translate('Client'),
+      title: 'Faculty / Client',
       dataIndex: ['client', 'name'],
     },
 
     {
-      title: translate('Total'),
+      title: 'Total',
       dataIndex: 'total',
       onCell: () => {
         return {
@@ -83,7 +85,7 @@ export default function DashboardModule() {
       render: (total, record) => moneyFormatter({ amount: total, currency_code: record.currency }),
     },
     {
-      title: translate('Status'),
+      title: 'Status',
       dataIndex: 'status',
     },
   ];
@@ -93,13 +95,13 @@ export default function DashboardModule() {
       result: invoiceResult,
       isLoading: invoiceLoading,
       entity: 'invoice',
-      title: translate('Invoices'),
+      title: 'Tuition & Fees Breakdown',
     },
     {
       result: quoteResult,
       isLoading: quoteLoading,
       entity: 'quote',
-      title: translate('quote'),
+      title: 'Proposals & Grants Breakdown',
     },
   ];
 
@@ -127,55 +129,59 @@ export default function DashboardModule() {
   if (money_format_settings) {
     return (
       <>
-        <Row gutter={[32, 32]}>
+        <StudentWelcomeBanner />
+        <Row gutter={[24, 24]}>
           <SummaryCard
-            title={translate('Invoices')}
-            prefix={translate('This month')}
+            title={'Tuition & Fees'}
+            prefix={'Semester Total'}
             isLoading={invoiceLoading}
             data={invoiceResult?.total}
           />
           <SummaryCard
-            title={translate('Quote')}
-            prefix={translate('This month')}
+            title={'Proposals & Grants'}
+            prefix={'Active Budgets'}
             isLoading={quoteLoading}
             data={quoteResult?.total}
           />
           <SummaryCard
-            title={translate('paid')}
-            prefix={translate('This month')}
+            title={'Paid Receipts'}
+            prefix={'Disbursed'}
             isLoading={paymentLoading}
             data={paymentResult?.total}
           />
           <SummaryCard
-            title={translate('Unpaid')}
-            prefix={translate('Not Paid')}
+            title={'Pending Dues'}
+            prefix={'Outstanding'}
             isLoading={invoiceLoading}
             data={invoiceResult?.total_undue}
           />
         </Row>
         <div className="space30"></div>
-        <Row gutter={[32, 32]}>
-          <Col className="gutter-row w-full" sm={{ span: 24 }} md={{ span: 24 }} lg={{ span: 18 }}>
-            <div className="whiteBox shadow" style={{ height: 458 }}>
+        <Row gutter={[24, 24]}>
+          <Col className="gutter-row w-full" xs={24} lg={15}>
+            <div className="whiteBox shadow" style={{ height: '100%', minHeight: 440, borderRadius: 16 }}>
               <Row className="pad20" gutter={[0, 0]}>
                 {statisticCards}
               </Row>
+              <div style={{ padding: '0 20px 20px' }}>
+                <CustomerPreviewCard
+                  isLoading={clientLoading}
+                  activeCustomer={clientResult?.active}
+                  newCustomer={clientResult?.new}
+                />
+              </div>
             </div>
           </Col>
-          <Col className="gutter-row w-full" sm={{ span: 24 }} md={{ span: 24 }} lg={{ span: 6 }}>
-            <CustomerPreviewCard
-              isLoading={clientLoading}
-              activeCustomer={clientResult?.active}
-              newCustomer={clientResult?.new}
-            />
+          <Col className="gutter-row w-full" xs={24} lg={9}>
+            <StudentTasksCard />
           </Col>
         </Row>
         <div className="space30"></div>
-        <Row gutter={[32, 32]}>
+        <Row gutter={[24, 24]}>
           <Col className="gutter-row w-full" sm={{ span: 24 }} lg={{ span: 12 }}>
-            <div className="whiteBox shadow pad20" style={{ height: '100%' }}>
-              <h3 style={{ color: '#22075e', marginBottom: 5, padding: '0 20px 20px' }}>
-                {translate('Recent Invoices')}
+            <div className="whiteBox shadow pad20" style={{ height: '100%', borderRadius: 16 }}>
+              <h3 style={{ color: '#0f172a', marginBottom: 5, padding: '0 20px 20px', fontWeight: 600 }}>
+                Recent Tuition & Fee Invoices
               </h3>
 
               <RecentTable entity={'invoice'} dataTableColumns={dataTableColumns} />
@@ -183,9 +189,9 @@ export default function DashboardModule() {
           </Col>
 
           <Col className="gutter-row w-full" sm={{ span: 24 }} lg={{ span: 12 }}>
-            <div className="whiteBox shadow pad20" style={{ height: '100%' }}>
-              <h3 style={{ color: '#22075e', marginBottom: 5, padding: '0 20px 20px' }}>
-                {translate('Recent Quotes')}
+            <div className="whiteBox shadow pad20" style={{ height: '100%', borderRadius: 16 }}>
+              <h3 style={{ color: '#0f172a', marginBottom: 5, padding: '0 20px 20px', fontWeight: 600 }}>
+                Recent Project Proposals & Grants
               </h3>
               <RecentTable entity={'quote'} dataTableColumns={dataTableColumns} />
             </div>

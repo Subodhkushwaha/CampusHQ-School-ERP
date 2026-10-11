@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useProfileContext } from '@/context/profileContext';
 import { generate as uniqueId } from 'shortid';
 import { EditOutlined, LockOutlined, LogoutOutlined } from '@ant-design/icons';
-import { Avatar, Button, Col, Descriptions, Divider, Row } from 'antd';
+import { Avatar, Button, Col, Descriptions, Divider, Row, Tag } from 'antd';
 import { PageHeader } from '@ant-design/pro-layout';
 import { useSelector } from 'react-redux';
 
@@ -78,7 +78,18 @@ const AdminInfo = ({ config }) => {
               {currentAdmin?.surname}
             </Descriptions.Item>
             <Descriptions.Item label={translate('email')}>{currentAdmin?.email}</Descriptions.Item>
-            <Descriptions.Item label={translate('role')}>{currentAdmin?.role}</Descriptions.Item>
+            <Descriptions.Item label="Program / Major">
+              Computer Science & Software Engineering
+            </Descriptions.Item>
+            <Descriptions.Item label="Student ID">
+              <Tag color="blue">STU-2026-8812</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Academic Standing">
+              <Tag color="green">Good Standing (Junior, Year 3)</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={translate('role')}>
+              <Tag color="geekblue">Student Account</Tag>
+            </Descriptions.Item>
           </Descriptions>
         </Col>
       </Row>

@@ -30,8 +30,29 @@ const adminSchema = new Schema({
   role: {
     type: String,
     default: 'owner',
-    enum: ['owner'],
+    enum: ['owner', 'admin', 'principal', 'teacher', 'accountant', 'receptionist', 'student', 'parent'],
   },
+  phone: {
+    type: String,
+  },
+  teacherRef: {
+    type: Schema.Types.ObjectId,
+    ref: 'Teacher',
+  },
+  studentRef: {
+    type: Schema.Types.ObjectId,
+    ref: 'Student',
+  },
+  parentStudentRef: {
+    type: Schema.Types.ObjectId,
+    ref: 'Student',
+  },
+  parentStudentRefs: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Student',
+    },
+  ],
 });
 
 module.exports = mongoose.model('Admin', adminSchema);

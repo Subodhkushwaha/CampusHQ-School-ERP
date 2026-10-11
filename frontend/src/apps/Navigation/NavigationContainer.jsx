@@ -26,6 +26,16 @@ import {
   FilterOutlined,
   WalletOutlined,
   ReconciliationOutlined,
+  BookOutlined,
+  TeamOutlined,
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  FileDoneOutlined,
+  NotificationOutlined,
+  ScheduleOutlined,
+  BarChartOutlined,
+  IdcardOutlined,
+  HeartOutlined,
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -52,49 +62,95 @@ function Sidebar({ collapsible, isMobile = false }) {
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
-      label: <Link to={'/'}>{translate('dashboard')}</Link>,
+      label: <Link to={'/'}>School Hub Dashboard</Link>,
+    },
+    {
+      key: 'students',
+      icon: <UserOutlined />,
+      label: <Link to={'/school/students'}>Student Admissions</Link>,
+    },
+    {
+      key: 'teachers',
+      icon: <TeamOutlined />,
+      label: <Link to={'/school/teachers'}>Faculty & Teachers</Link>,
+    },
+    {
+      key: 'classes',
+      icon: <AppstoreOutlined />,
+      label: <Link to={'/school/classes'}>Classes & Sections</Link>,
+    },
+    {
+      key: 'attendance',
+      icon: <CheckCircleOutlined />,
+      label: <Link to={'/school/attendance'}>Daily Attendance</Link>,
+    },
+    {
+      key: 'exams',
+      icon: <FileDoneOutlined />,
+      label: <Link to={'/school/exams'}>Examinations & Marks</Link>,
+    },
+    {
+      key: 'fees',
+      icon: <CreditCardOutlined />,
+      label: <Link to={'/school/fees'}>Fees & Accounts</Link>,
+    },
+    {
+      key: 'notices',
+      icon: <NotificationOutlined />,
+      label: <Link to={'/school/notices'}>Notice Board</Link>,
+    },
+    {
+      key: 'timetable',
+      icon: <ScheduleOutlined />,
+      label: <Link to={'/school/timetable'}>Class Timetable</Link>,
+    },
+    {
+      key: 'reports',
+      icon: <BarChartOutlined />,
+      label: <Link to={'/school/reports'}>Reports & Analytics</Link>,
+    },
+    {
+      key: 'studentPortal',
+      icon: <IdcardOutlined />,
+      label: <Link to={'/school/student-portal'}>Student Portal</Link>,
+    },
+    {
+      key: 'parentPortal',
+      icon: <HeartOutlined />,
+      label: <Link to={'/school/parent-portal'}>Parent Portal</Link>,
+    },
+    {
+      key: 'import',
+      icon: <ReconciliationOutlined />,
+      label: <Link to={'/school/import'}>Bulk Import & Reconcile</Link>,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'invoice',
+      icon: <ContainerOutlined />,
+      label: <Link to={'/invoice'}>Tuition Invoices</Link>,
+    },
+    {
+      key: 'payment',
+      icon: <WalletOutlined />,
+      label: <Link to={'/payment'}>Settlement Receipts</Link>,
     },
     {
       key: 'customer',
       icon: <CustomerServiceOutlined />,
-      label: <Link to={'/customer'}>{translate('customers')}</Link>,
-    },
-
-    {
-      key: 'invoice',
-      icon: <ContainerOutlined />,
-      label: <Link to={'/invoice'}>{translate('invoices')}</Link>,
+      label: <Link to={'/customer'}>Campus Contacts</Link>,
     },
     {
-      key: 'quote',
-      icon: <FileSyncOutlined />,
-      label: <Link to={'/quote'}>{translate('quote')}</Link>,
-    },
-    {
-      key: 'payment',
-      icon: <CreditCardOutlined />,
-      label: <Link to={'/payment'}>{translate('payments')}</Link>,
-    },
-
-    {
-      key: 'paymentMode',
-      label: <Link to={'/payment/mode'}>{translate('payments_mode')}</Link>,
-      icon: <WalletOutlined />,
-    },
-    {
-      key: 'taxes',
-      label: <Link to={'/taxes'}>{translate('taxes')}</Link>,
-      icon: <ShopOutlined />,
-    },
-    {
-      key: 'generalSettings',
-      label: <Link to={'/settings'}>{translate('settings')}</Link>,
-      icon: <SettingOutlined />,
+      key: 'landing',
+      icon: <BookOutlined />,
+      label: <Link to={'/landing'}>Campus Portal Tour</Link>,
     },
     {
       key: 'about',
-      label: <Link to={'/about'}>{translate('about')}</Link>,
       icon: <ReconciliationOutlined />,
+      label: <Link to={'/about'}>Help & Support</Link>,
     },
   ];
 
@@ -149,20 +205,37 @@ function Sidebar({ collapsible, isMobile = false }) {
         onClick={() => navigate('/')}
         style={{
           cursor: 'pointer',
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
         }}
       >
-        <img src={logoIcon} alt="Logo" style={{ marginLeft: '-5px', height: '40px' }} />
-
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, #1890ff, #096dd9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            fontSize: 20,
+            boxShadow: '0 4px 10px rgba(24, 144, 255, 0.25)',
+          }}
+        >
+          🎓
+        </div>
         {!showLogoApp && (
-          <img
-            src={logoText}
-            alt="Logo"
-            style={{
-              marginTop: '3px',
-              marginLeft: '10px',
-              height: '38px',
-            }}
-          />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#0f172a', lineHeight: 1.2 }}>
+              CampusHQ
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>
+              School ERP & Portal
+            </div>
+          </div>
         )}
       </div>
       <Menu

@@ -165,11 +165,13 @@ export function dataForTable({ fields, translate, moneyFormatter, dateFormat }) 
         title: field.label ? translate(field.label) : translate(key),
         dataIndex: keyIndex,
         render: (_, record) => {
-          return record[key].map((x) => (
-            <Tag bordered={false} key={`${uniqueId()}`} color={field.colors[x]}>
-              {x}
-            </Tag>
-          ));
+          return Array.isArray(record[key])
+            ? record[key].map((x) => (
+                <Tag bordered={false} key={`${uniqueId()}`} color={field.colors?.[x]}>
+                  {x}
+                </Tag>
+              ))
+            : null;
         },
       },
       country: {

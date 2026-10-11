@@ -3,6 +3,10 @@ node_modules/
 .DS_Store
 .idea
 notes.md
-.env.local
-
+.env
+.env.*
+!.env.example
 *.pdf
+data/
+src/public/uploads/student/*
+!src/public/uploads/student/.gitkeep

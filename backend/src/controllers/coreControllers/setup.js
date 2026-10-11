@@ -5,6 +5,7 @@ const fs = require('fs');
 const { generate: uniqueId } = require('shortid');
 
 const mongoose = require('mongoose');
+const Joi = require('joi');
 
 const setup = async (req, res) => {
   const Admin = mongoose.model('Admin');

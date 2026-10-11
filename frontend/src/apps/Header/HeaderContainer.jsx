@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar, Dropdown, Layout, Badge, Button } from 'antd';
+import { Avatar, Dropdown, Layout, Badge, Button, Tag } from 'antd';
 
 // import Notifications from '@/components/Notification';
 
@@ -37,10 +37,13 @@ export default function HeaderContent() {
           {currentAdmin?.name?.charAt(0)?.toUpperCase()}
         </Avatar>
         <div className="profileDropdownInfo">
-          <p>
+          <p style={{ fontWeight: 600, margin: 0 }}>
             {currentAdmin?.name} {currentAdmin?.surname}
           </p>
-          <p>{currentAdmin?.email}</p>
+          <p style={{ margin: '2px 0', fontSize: 12, color: '#64748b' }}>{currentAdmin?.email}</p>
+          <Tag color="geekblue" style={{ fontSize: 11, padding: '0 6px', marginTop: 2 }}>
+            🎓 Student Account
+          </Tag>
         </div>
       </div>
     );
@@ -127,7 +130,3 @@ export default function HeaderContent() {
     </Header>
   );
 }
-
-//  console.log(
-//    '🚀 Welcome to IDURAR ERP CRM! Did you know that we also offer commercial customization services? Contact us at hello@idurarapp.com for more information.'
-//  );

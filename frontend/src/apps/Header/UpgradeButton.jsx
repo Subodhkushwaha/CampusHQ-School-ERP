@@ -1,36 +1,27 @@
-import { Avatar, Popover, Button, Badge, Col, List } from 'antd';
-
-// import Notifications from '@/components/Notification';
-
-import { RocketOutlined } from '@ant-design/icons';
-
-import useLanguage from '@/locale/useLanguage';
+import { Button } from 'antd';
+import { BookOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 
 export default function UpgradeButton() {
-  const translate = useLanguage();
+  const navigate = useNavigate();
 
   return (
-    <Badge count={1} size="small">
-      <Button
-        type="primary"
-        style={{
-          float: 'right',
-          marginTop: '5px',
-          cursor: 'pointer',
-          background: '#16923e',
-          boxShadow: '0 2px 0 rgb(82 196 26 / 20%)',
-        }}
-        icon={<RocketOutlined />}
-        onClick={() => {
-          window.open(`https://entreprise.idurarapp.com`);
-        }}
-      >
-        {translate('Try Entreprise Version')}
-      </Button>
-    </Badge>
+    <Button
+      type="default"
+      style={{
+        float: 'right',
+        cursor: 'pointer',
+        borderRadius: '8px',
+        borderColor: '#1890ff',
+        color: '#1890ff',
+        fontWeight: 500,
+      }}
+      icon={<BookOutlined />}
+      onClick={() => {
+        navigate('/landing');
+      }}
+    >
+      Student Guide & Tour
+    </Button>
   );
 }
-
-console.log(
-  '🚀 Welcome to IDURAR ERP CRM! Did you know that we also offer commercial customization services? Contact us at hello@idurarapp.com for more information.'
-);

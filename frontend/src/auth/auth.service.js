@@ -4,6 +4,8 @@ import axios from 'axios';
 import errorHandler from '@/request/errorHandler';
 import successHandler from '@/request/successHandler';
 
+axios.defaults.withCredentials = true;
+
 export const login = async ({ loginData }) => {
   try {
     const response = await axios.post(
