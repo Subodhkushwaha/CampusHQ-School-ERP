@@ -18,6 +18,7 @@ const schoolApiRouter = require('./routes/appRoutes/schoolApi');
 const fileUpload = require('express-fileupload');
 // create our Express app
 const app = express();
+app.set('trust proxy', 1);
 
 const mongoose = require('mongoose');
 
@@ -28,6 +29,7 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'http://localhost:8888',
   'http://127.0.0.1:8888',
+  'https://campus-hq-school-erp.vercel.app',
 ];
 
 if (process.env.FRONTEND_URL) {
@@ -46,14 +48,19 @@ const isProduction = process.env.NODE_ENV === 'production';
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (
+      allowedOrigins.indexOf(origin) !== -1 ||
+      origin.endsWith('.vercel.app') ||
+      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)
+    ) {
       return callback(null, true);
     }
     // In local development, permit local development origins
     if (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       return callback(null, true);
     }
-    return callback(new Error(`CORS Error: Origin '${origin}' is not authorized by CORS policy.`));
+    // Reject origin cleanly without throwing 500 error
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -64,13 +71,25 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
+// Root index endpoint to prevent 404 when visiting the base backend URL
+app.get('/', (req, res) => {
+  res.status(200).json({
+    name: 'CampusHQ School ERP API',
+    status: 'running',
+    health: '/api/health',
+    version: '1.0.0',
+    documentation: 'https://github.com/Subodhkushwaha/CampusHQ-School-ERP',
+  });
+});
+
 // Health check endpoint for Render and uptime monitors
 app.get(['/health', '/api/health'], (req, res) => {
-  res.status(200).json({
-    status: 'ok',
+  const isDbConnected = mongoose.connection.readyState === 1;
+  res.status(isDbConnected ? 200 : 503).json({
+    status: isDbConnected ? 'ok' : 'degraded',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    database: isDbConnected ? 'connected' : 'disconnected',
   });
 });
 

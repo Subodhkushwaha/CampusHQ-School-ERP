@@ -23,14 +23,14 @@ Configure the following variables in the **Environment** tab of your Render Web 
 
 | Variable | Required | Example / Recommended Value | Description |
 | :--- | :---: | :--- | :--- |
-| `DATABASE` | **Yes** | `mongodb+srv://<user>:<password>@cluster0.lmgftc8.mongodb.net/campushq?retryWrites=true&w=majority` | Full MongoDB connection string. Must start with `mongodb://` or `mongodb+srv://` and point to the cluster containing the `campushq` database. |
+| `DATABASE` | **Yes** | `mongodb+srv://<user>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority` | Full MongoDB connection string. Must start with `mongodb://` or `mongodb+srv://` and point to the cluster containing the `campushq` database. |
 | `JWT_SECRET` | **Yes** | `secure_random_64_character_hex_or_alphanumeric_secret` | Secret key used for signing and verifying JSON Web Tokens (session auth). Must not be empty. |
 | `NODE_ENV` | **Yes** | `production` | Sets Node to production mode (enables performance optimizations & strict CORS). |
 | `PORT` | **Yes** | `10000` | Port on which Express listens. Render defaults to `10000`. |
 | `NODE_VERSION` | **Yes** | `20.18.0` | Ensures Render builds and runs with Node.js 20. |
-| `FRONTEND_URL` | Optional | `https://your-frontend.vercel.app` | Allowed frontend origin for CORS. Multiple origins can be comma-separated. |
-| `WEBSITE_URL` | Optional | `https://your-frontend.vercel.app` | Secondary allowed origin for CORS. |
-| `PUBLIC_SERVER_FILE` | Optional | `https://campushq-backend.onrender.com/` | Public base URL for uploaded file and PDF assets. |
+| `FRONTEND_URL` | Optional | `https://campus-hq-school-erp.vercel.app` | Allowed frontend origin for CORS. Multiple origins can be comma-separated. |
+| `WEBSITE_URL` | Optional | `https://campus-hq-school-erp.vercel.app` | Secondary allowed origin for CORS. |
+| `PUBLIC_SERVER_FILE` | Optional | `https://campushq-school-erp.onrender.com/` | Public base URL for uploaded file and PDF assets. |
 
 ---
 
@@ -43,10 +43,10 @@ Before redeploying on Render, verify these three settings in your [MongoDB Atlas
    * Ensure `0.0.0.0/0` (Allow Access From Anywhere) is present and has status **Active**.
    * *Why?* Render web services use dynamic outbound IP addresses that change on deploy and restart. Without `0.0.0.0/0`, Atlas's reverse proxy will reject incoming TLS connections with fatal TLS alerts.
 2. **Cluster Running State:**
-   * Ensure your cluster is **Active** (not paused, undergoing maintenance, or provisioning).
+   * Ensure cluster `cluster0.fzeutel.mongodb.net` is **Active** (not paused, undergoing maintenance, or provisioning).
 3. **Target Database in Connection URI:**
    * Ensure the URI path explicitly targets `/campushq`:
-     `mongodb+srv://<user>:<password>@cluster0.lmgftc8.mongodb.net/campushq?retryWrites=true&w=majority`
+     `mongodb+srv://<user>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority`
    * Ensure the database user has **Read and write to any database** (or read/write on the `campushq` database).
    * Ensure special characters in `<password>` (such as `@`, `:`, `#`, `%`) are URL-encoded.
 
@@ -60,7 +60,7 @@ Before redeploying on Render, verify these three settings in your [MongoDB Atlas
 4. Click **Manual Deploy** > **Deploy latest commit**.
 5. Observe the deployment logs:
    ```text
-   Connecting to MongoDB (host: cluster0.lmgftc8.mongodb.net, target database: "campushq")...
-   Connected to MongoDB successfully (host: cluster0.lmgftc8.mongodb.net, active database: "campushq")
+   Connecting to MongoDB (host: cluster0.fzeutel.mongodb.net, target database: "campushq")...
+   Connected to MongoDB successfully (host: cluster0.fzeutel.mongodb.net, active database: "campushq")
    Express running → On PORT : 10000
    ```

@@ -61,6 +61,7 @@ async function startServer() {
       console.log(`Express running → On PORT : ${server.address().port}`);
     });
   } catch (err) {
+    console.log(`Failed to start server: ${err.message}`);
     console.error('Failed to start server:', err.message);
     process.exit(1);
   }

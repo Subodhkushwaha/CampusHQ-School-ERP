@@ -1,12 +1,13 @@
 const mongoose = require('mongoose');
 
 async function connectDB() {
-  const dbUri = process.env.DATABASE || process.env.MONGODB_URI;
+  const dbUri =
+    process.env.DATABASE || process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
 
   if (!dbUri || (!dbUri.startsWith('mongodb://') && !dbUri.startsWith('mongodb+srv://'))) {
     const errorMsg =
-      'Configuration Error: DATABASE environment variable must be set and start with "mongodb://" or "mongodb+srv://".\n' +
-      'Example: DATABASE="mongodb+srv://<username>:<password>@cluster0.example.mongodb.net/campushq?retryWrites=true&w=majority"';
+      'Configuration Error: DATABASE or MONGODB_URI environment variable must be set and start with "mongodb://" or "mongodb+srv://".\n' +
+      'Example: DATABASE="mongodb+srv://<username>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority"';
     console.error(errorMsg);
     throw new Error(errorMsg);
   }
@@ -61,6 +62,7 @@ async function connectDB() {
       console.warn('MongoDB connection lost. Driver will automatically attempt reconnection.');
     });
   } catch (err) {
+    console.log(`DATABASE CONNECTION FAILED: Unable to connect to MongoDB (host: ${hostInfo}, database: "${targetDbName}"). [${err.name}] ${err.message}`);
     console.error('\n' + '='.repeat(68));
     console.error('DATABASE CONNECTION FAILED: Unable to connect to MongoDB');
     console.error(`Target Host:     ${hostInfo}`);

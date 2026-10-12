@@ -9,7 +9,7 @@ const isValidAuthToken = async (req, res, next, { userModel, jwtSecret = 'JWT_SE
 
     // const token = req.cookies[`token_${cloud._id}`];
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Extract the token
+    const token = (authHeader && authHeader.split(' ')[1]) || req.cookies?.token; // Extract token from header or cookie
 
     if (!token)
       return res.status(401).json({

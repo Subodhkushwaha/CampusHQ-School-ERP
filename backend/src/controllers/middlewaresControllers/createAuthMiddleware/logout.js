@@ -6,7 +6,15 @@ const logout = async (req, res, { userModel }) => {
   // const token = req.cookies[`token_${cloud._id}`];
 
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Extract the token
+  const token = (authHeader && authHeader.split(' ')[1]) || req.cookies?.token;
+
+  if (res.clearCookie) {
+    res.clearCookie('token', {
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+  }
 
   if (token)
     await UserPassword.findOneAndUpdate(

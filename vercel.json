@@ -5,6 +5,18 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://campushq-school-erp.onrender.com/api/$1"
+    },
+    {
+      "source": "/download/(.*)",
+      "destination": "https://campushq-school-erp.onrender.com/download/$1"
+    },
+    {
+      "source": "/public/(.*)",
+      "destination": "https://campushq-school-erp.onrender.com/public/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
