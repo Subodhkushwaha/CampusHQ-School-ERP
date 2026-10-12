@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 async function connectDB() {
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
   const dbUri =
     process.env.DATABASE || process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
 

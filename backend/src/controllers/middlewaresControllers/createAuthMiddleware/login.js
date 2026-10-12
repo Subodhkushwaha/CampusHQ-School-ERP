@@ -28,7 +28,8 @@ const login = async (req, res, { userModel }) => {
     });
   }
 
-  const user = await UserModel.findOne({ email: email, removed: false });
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const user = await UserModel.findOne({ email: normalizedEmail, removed: false });
 
   if (!user)
     return res.status(401).json({
@@ -39,6 +40,13 @@ const login = async (req, res, { userModel }) => {
 
   const databasePassword = await UserPasswordModel.findOne({ user: user._id, removed: false });
 
+  if (!databasePassword)
+    return res.status(401).json({
+      success: false,
+      result: null,
+      message: 'Invalid credentials.',
+    });
+
   if (!user.enabled)
     return res.status(409).json({
       success: false,
@@ -46,8 +54,8 @@ const login = async (req, res, { userModel }) => {
       message: 'Your account is disabled, contact your account adminstrator',
     });
 
-  //  authUser if your has correct password
-  authUser(req, res, {
+  // authUser if your user has correct password
+  return await authUser(req, res, {
     user,
     databasePassword,
     password,

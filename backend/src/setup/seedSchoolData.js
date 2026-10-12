@@ -5,7 +5,9 @@ const mongoose = require('mongoose');
 const connectDB = require('../connectDB');
 
 async function seedSchool() {
-  await connectDB();
+  if (mongoose.connection.readyState !== 1) {
+    await connectDB();
+  }
   console.log('Seeding School ERP data...');
 
   const Admin = require('../models/coreModels/Admin');
@@ -23,12 +25,54 @@ async function seedSchool() {
   const Notice = require('../models/appModels/Notice');
   const Timetable = require('../models/appModels/Timetable');
 
+  // Initialize Core System Settings, Taxes, and Payment Modes if empty
+  const Setting = require('../models/coreModels/Setting');
+  const existingSettings = await Setting.countDocuments();
+  if (existingSettings === 0) {
+    const fs = require('fs');
+    const path = require('path');
+    const { globSync } = require('glob');
+    const defaultSettingsDir = path.resolve(__dirname, './defaultSettings');
+    const settingsFiles = globSync(path.join(defaultSettingsDir, '**/*.json').replace(/\\/g, '/'));
+    const settingFiles = [];
+    for (const filePath of settingsFiles) {
+      const file = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      settingFiles.push(...file);
+    }
+    if (settingFiles.length > 0) {
+      await Setting.insertMany(settingFiles);
+      console.log('Default system settings initialized.');
+    }
+  }
+
+  const PaymentMode = require('../models/appModels/PaymentMode');
+  const Taxes = require('../models/appModels/Taxes');
+
+  const taxCount = await Taxes.countDocuments();
+  if (taxCount === 0) {
+    await Taxes.insertMany([{ taxName: 'Tax 0%', taxValue: '0', isDefault: true }]);
+    console.log('Default taxes configured.');
+  }
+
+  const modeCount = await PaymentMode.countDocuments();
+  if (modeCount === 0) {
+    await PaymentMode.insertMany([
+      {
+        name: 'Default Payment',
+        description: 'Default Payment Mode (Cash, Bank Transfer, Online)',
+        isDefault: true,
+      },
+    ]);
+    console.log('Default payment mode configured.');
+  }
+
   // Helper to create or get Admin user
   async function createRoleUser(email, password, name, surname, role, extraFields = {}) {
-    let user = await Admin.findOne({ email });
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    let user = await Admin.findOne({ email: normalizedEmail });
     if (!user) {
       user = await new Admin({
-        email,
+        email: normalizedEmail,
         name,
         surname,
         role,
@@ -45,11 +89,24 @@ async function seedSchool() {
         salt,
         user: user._id,
       }).save();
-      console.log(`Created user: ${email} (${role})`);
+      console.log(`Created user: ${normalizedEmail} (${role})`);
     } else {
       user.role = role;
       Object.assign(user, extraFields);
       await user.save();
+
+      let userPass = await AdminPassword.findOne({ user: user._id, removed: false });
+      if (!userPass) {
+        const newPass = new AdminPassword();
+        const salt = uniqueId();
+        const hash = newPass.generateHash(salt, password);
+        await new AdminPassword({
+          password: hash,
+          emailVerified: true,
+          salt,
+          user: user._id,
+        }).save();
+      }
     }
     return user;
   }
@@ -490,10 +547,16 @@ async function seedSchool() {
   }
 
   console.log('🎉 School ERP Seeding Complete!');
-  process.exit(0);
+  if (require.main === module) {
+    process.exit(0);
+  }
 }
 
-seedSchool().catch((err) => {
-  console.error('Seeding error:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  seedSchool().catch((err) => {
+    console.error('Seeding error:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = seedSchool;

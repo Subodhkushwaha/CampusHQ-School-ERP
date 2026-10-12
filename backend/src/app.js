@@ -83,13 +83,22 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoint for Render and uptime monitors
-app.get(['/health', '/api/health'], (req, res) => {
+app.get(['/health', '/api/health'], async (req, res) => {
   const isDbConnected = mongoose.connection.readyState === 1;
+  let initialized = false;
+  if (isDbConnected) {
+    try {
+      const Admin = mongoose.model('Admin');
+      const count = await Admin.countDocuments({ removed: false });
+      initialized = count > 0;
+    } catch (_) {}
+  }
   res.status(isDbConnected ? 200 : 503).json({
     status: isDbConnected ? 'ok' : 'degraded',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     database: isDbConnected ? 'connected' : 'disconnected',
+    systemInitialized: initialized,
   });
 });
 

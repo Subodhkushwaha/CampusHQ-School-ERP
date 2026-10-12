@@ -146,6 +146,11 @@ describe('Backend Endpoints & CORS Integration', () => {
     assert.ok(res.headers['access-control-allow-methods'].includes('POST'));
   });
 
+  it('GET /health reports systemInitialized boolean', async () => {
+    const res = await makeRequest(server, { path: '/health' });
+    assert.strictEqual(typeof res.body.systemInitialized, 'boolean');
+  });
+
   it('POST /api/login rejects empty body with 400 validation error', async () => {
     const res = await makeRequest(
       server,

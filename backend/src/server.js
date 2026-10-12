@@ -53,6 +53,20 @@ async function startServer() {
   try {
     await connectDB();
 
+    // Automatically initialize default settings & seed role accounts if database is empty
+    const Admin = mongoose.model('Admin');
+    const adminCount = await Admin.countDocuments({ removed: false });
+    if (adminCount === 0) {
+      console.log('NOTICE: Database has 0 user accounts. Initializing default system & role accounts...');
+      try {
+        const seedSchool = require('./setup/seedSchoolData');
+        await seedSchool();
+        console.log('Database initialization completed.');
+      } catch (seedErr) {
+        console.warn('Auto-seed warning (non-fatal):', seedErr.message);
+      }
+    }
+
     // Start our app!
     const app = require('./app');
     const port = process.env.PORT || 8888;
