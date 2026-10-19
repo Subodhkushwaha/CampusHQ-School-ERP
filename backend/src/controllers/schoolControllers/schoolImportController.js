@@ -47,9 +47,15 @@ function matchHeaderToCanonical(header, canonicalFields) {
     class: 'className',
     grade: 'className',
     classcode: 'className',
+    classname: 'className',
+    schoolclass: 'className',
+    classid: 'className',
+    standard: 'className',
     section: 'sectionName',
     sec: 'sectionName',
     sectioncode: 'sectionName',
+    sectionname: 'sectionName',
+    sectionid: 'sectionName',
     phone: 'studentMobile',
     mobile: 'studentMobile',
     cell: 'studentMobile',
@@ -186,16 +192,17 @@ const validateBatch = async (req, res) => {
     if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ success: false, message: 'No rows to validate.' });
     }
+    if (rows.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: `Batch contains ${rows.length} records, exceeding the maximum allowed batch limit of 5,000 records.`,
+      });
+    }
 
     const schema = IMPORT_SCHEMAS[importType];
     const requiredFields = schema.canonicalFields.filter((f) => f.required).map((f) => f.key);
 
     const issues = [];
-    let validCount = 0;
-    let warningCount = 0;
-    let invalidCount = 0;
-    let newCount = 0;
-    let updateCount = 0;
 
     // Track uniqueness within the uploaded batch
     const seenBatchKeys = new Set();
@@ -209,12 +216,19 @@ const validateBatch = async (req, res) => {
 
     const [existingStudents, existingTeachers, existingClasses, existingSections, existingSubjects] =
       await Promise.all([
-        Student.find({ removed: false }).select('admissionNumber studentId email'),
+        Student.find({ removed: false }).select('admissionNumber studentId email schoolClass section status'),
         Teacher.find({ removed: false }).select('employeeId email'),
-        SchoolClass.find({ removed: false }).select('name code'),
-        Section.find({ removed: false }).select('name code schoolClass'),
-        Subject.find({ removed: false }).select('code name schoolClass'),
+        SchoolClass.find({ removed: false }).select('name code _id'),
+        Section.find({ removed: false }).select('name code schoolClass _id'),
+        Subject.find({ removed: false }).select('code name schoolClass _id'),
       ]);
+
+    const existingStudentMap = new Map();
+    existingStudents.forEach((s) => {
+      if (s.admissionNumber) {
+        existingStudentMap.set(s.admissionNumber.toUpperCase(), s);
+      }
+    });
 
     const existingAdmissionNumbers = new Set(
       existingStudents.map((s) => (s.admissionNumber ? s.admissionNumber.toUpperCase() : ''))
@@ -227,9 +241,9 @@ const validateBatch = async (req, res) => {
     );
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const phoneRegex = /^[\d\s+\-()]{7,20}$/;
 
     const rowSummaries = [];
+    const destMap = new Map();
 
     for (let i = 0; i < rows.length; i++) {
       const rowNum = i + 1;
@@ -308,22 +322,106 @@ const validateBatch = async (req, res) => {
           });
         }
 
+        // Flexible class & section resolution (support names, codes, and ObjectIds)
+        const rawClass = row.className || row.schoolClass || row.classId;
+        const rawSec = row.sectionName || row.section || row.sectionId;
+        if (rawClass) row.className = rawClass;
+        if (rawSec) row.sectionName = rawSec;
+
+        let matchedClass = null;
         if (row.className) {
-          const classFound = existingClasses.some(
+          const cStr = String(row.className).trim().toLowerCase();
+          matchedClass = existingClasses.find(
             (c) =>
-              c.name.toLowerCase() === row.className.toLowerCase() ||
-              (c.code && c.code.toLowerCase() === row.className.toLowerCase())
+              (c._id && c._id.toString() === String(row.className).trim()) ||
+              c.name.toLowerCase() === cStr ||
+              (c.code && c.code.toLowerCase() === cStr)
           );
-          if (!classFound) {
+          if (!matchedClass) {
             rowIssues.push({
               row: rowNum,
               field: 'className',
               value: row.className,
-              message: `Class '${row.className}' was not found in the school class registry.`,
+              message: `Class '${row.className}' was not found in the school class registry. A new class will be created upon commit.`,
               type: 'warning',
             });
           }
         }
+
+        let matchedSec = null;
+        if (row.sectionName) {
+          const sStr = String(row.sectionName).trim().toLowerCase();
+          if (matchedClass) {
+            matchedSec = existingSections.find(
+              (s) =>
+                (s.schoolClass?._id?.toString() === matchedClass._id.toString() ||
+                  s.schoolClass?.toString() === matchedClass._id.toString()) &&
+                ((s._id && s._id.toString() === String(row.sectionName).trim()) ||
+                  s.name.toLowerCase() === sStr ||
+                  (s.code && s.code.toLowerCase() === sStr))
+            );
+          }
+
+          if (!matchedSec) {
+            // Check if section exists under a different class
+            const crossSection = existingSections.find(
+              (s) =>
+                (s._id && s._id.toString() === String(row.sectionName).trim()) ||
+                s.name.toLowerCase() === sStr ||
+                (s.code && s.code.toLowerCase() === sStr)
+            );
+            if (crossSection && matchedClass) {
+              rowIssues.push({
+                row: rowNum,
+                field: 'sectionName',
+                value: row.sectionName,
+                message: `Section '${row.sectionName}' belongs to class '${crossSection.schoolClass?.name || 'another class'}', not '${matchedClass.name}'.`,
+                type: 'error',
+              });
+            } else if (!crossSection) {
+              rowIssues.push({
+                row: rowNum,
+                field: 'sectionName',
+                value: row.sectionName,
+                message: `Section '${row.sectionName}' was not found in class '${matchedClass ? matchedClass.name : row.className}'. A new section will be created upon commit.`,
+                type: 'warning',
+              });
+            }
+          }
+        }
+
+        // Track destination for 120-student capacity validation
+        const destClassKey = matchedClass ? matchedClass._id.toString() : String(row.className || 'UNKNOWN').trim().toLowerCase();
+        const destSecKey = matchedSec ? matchedSec._id.toString() : String(row.sectionName || 'DEFAULT').trim().toLowerCase();
+        const destKey = `${destClassKey}:${destSecKey}`;
+
+        if (!destMap.has(destKey)) {
+          destMap.set(destKey, {
+            classId: matchedClass ? matchedClass._id.toString() : null,
+            sectionId: matchedSec ? matchedSec._id.toString() : null,
+            className: matchedClass ? matchedClass.name : row.className,
+            sectionName: matchedSec ? matchedSec.name : row.sectionName,
+            rows: [],
+          });
+        }
+
+        const existingStu = adm ? existingStudentMap.get(adm) : null;
+        const isSameSection =
+          existingStu &&
+          matchedClass &&
+          matchedSec &&
+          (existingStu.schoolClass?._id?.toString() === matchedClass._id.toString() ||
+            existingStu.schoolClass?.toString() === matchedClass._id.toString()) &&
+          (existingStu.section?._id?.toString() === matchedSec._id.toString() ||
+            existingStu.section?.toString() === matchedSec._id.toString());
+
+        destMap.get(destKey).rows.push({
+          rowNum,
+          adm,
+          isSameSection: !!isSameSection,
+          rowIssues,
+        });
+
       } else if (importType === 'teachers') {
         const empId = row.employeeId ? String(row.employeeId).trim().toUpperCase() : null;
         const email = row.email ? String(row.email).trim().toLowerCase() : null;
@@ -389,30 +487,88 @@ const validateBatch = async (req, res) => {
         }
       }
 
-      const hasError = rowIssues.some((iss) => iss.type === 'error');
-      const hasWarning = rowIssues.some((iss) => iss.type === 'warning');
+      rowSummaries.push({
+        rowNumber: rowNum,
+        data: row,
+        isUpdate,
+        issues: rowIssues,
+      });
+    }
+
+    // 3. Enforce maximum 120 students per class-section
+    if (importType === 'students') {
+      for (const [, destInfo] of destMap.entries()) {
+        let currentlyEnrolled = 0;
+        if (destInfo.classId && destInfo.sectionId) {
+          currentlyEnrolled = existingStudents.filter(
+            (s) =>
+              s.status !== 'inactive' &&
+              (s.schoolClass?._id?.toString() === destInfo.classId ||
+                s.schoolClass?.toString() === destInfo.classId) &&
+              (s.section?._id?.toString() === destInfo.sectionId ||
+                s.section?.toString() === destInfo.sectionId)
+          ).length;
+        }
+
+        const seenAdmsInDest = new Set();
+        let netIncoming = 0;
+        const overCapacityRows = [];
+
+        for (const r of destInfo.rows) {
+          if (!r.isSameSection) {
+            const key = r.adm || `ROW_${r.rowNum}`;
+            if (!seenAdmsInDest.has(key)) {
+              seenAdmsInDest.add(key);
+              netIncoming++;
+              if (currentlyEnrolled + netIncoming > 120) {
+                overCapacityRows.push(r);
+              }
+            }
+          }
+        }
+
+        if (currentlyEnrolled + netIncoming > 120) {
+          for (const overRow of overCapacityRows) {
+            const capacityIssue = {
+              row: overRow.rowNum,
+              field: 'sectionName',
+              value: destInfo.sectionName || 'Section',
+              message: `Capacity limit exceeded: Maximum allowed capacity is 120 students per class-section. Class '${destInfo.className || 'Class'}', Section '${destInfo.sectionName || 'Section'}' currently has ${currentlyEnrolled} active student(s), plus ${netIncoming} incoming new enrollment(s) = projected total ${currentlyEnrolled + netIncoming} (exceeds limit of 120).`,
+              type: 'error',
+            };
+            overRow.rowIssues.push(capacityIssue);
+          }
+        }
+      }
+    }
+
+    // Tally validation summary
+    let validCount = 0;
+    let warningCount = 0;
+    let invalidCount = 0;
+    let newCount = 0;
+    let updateCount = 0;
+
+    for (const rSummary of rowSummaries) {
+      const hasError = rSummary.issues.some((iss) => iss.type === 'error');
+      const hasWarning = rSummary.issues.some((iss) => iss.type === 'warning');
+
+      rSummary.status = hasError ? 'invalid' : hasWarning ? 'warning' : 'valid';
 
       if (hasError) {
         invalidCount++;
       } else if (hasWarning) {
         warningCount++;
         validCount++;
-        if (isUpdate) updateCount++;
+        if (rSummary.isUpdate) updateCount++;
         else newCount++;
       } else {
         validCount++;
-        if (isUpdate) updateCount++;
+        if (rSummary.isUpdate) updateCount++;
         else newCount++;
       }
 
-      issues.push(...rowIssues);
-      rowSummaries.push({
-        rowNumber: rowNum,
-        data: row,
-        status: hasError ? 'invalid' : hasWarning ? 'warning' : 'valid',
-        isUpdate,
-        issues: rowIssues,
-      });
+      issues.push(...rSummary.issues);
     }
 
     return res.status(200).json({
@@ -444,6 +600,16 @@ const reconcileBatch = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid import type.' });
     }
 
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'No rows to reconcile.' });
+    }
+    if (rows.length > 5000) {
+      return res.status(400).json({
+        success: false,
+        message: `Batch contains ${rows.length} records, exceeding the maximum allowed batch limit of 5,000 records.`,
+      });
+    }
+
     const SchoolClass = mongoose.model('SchoolClass');
     const Section = mongoose.model('Section');
     const Subject = mongoose.model('Subject');
@@ -465,8 +631,8 @@ const reconcileBatch = async (req, res) => {
       const row = mapRow(rows[i], columnMapping);
 
       if (importType === 'students' || importType === 'enrollments') {
-        const className = row.className || row.classCode;
-        const sectionName = row.sectionName || row.sectionCode;
+        const className = row.className || row.classCode || row.schoolClass || row.classId;
+        const sectionName = row.sectionName || row.sectionCode || row.section || row.sectionId;
         const adm = row.admissionNumber;
 
         let matchedClass = null;
@@ -477,10 +643,12 @@ const reconcileBatch = async (req, res) => {
         let suggestedAction = 'Proceed with admission and class enrollment.';
 
         if (className) {
+          const cStr = String(className).trim().toLowerCase();
           matchedClass = allClasses.find(
             (c) =>
-              c.name.toLowerCase() === className.toLowerCase() ||
-              (c.code && c.code.toLowerCase() === className.toLowerCase())
+              (c._id && c._id.toString() === String(className).trim()) ||
+              c.name.toLowerCase() === cStr ||
+              (c.code && c.code.toLowerCase() === cStr)
           );
           if (!matchedClass) {
             status = 'unresolved';
@@ -490,22 +658,26 @@ const reconcileBatch = async (req, res) => {
         }
 
         if (matchedClass && sectionName) {
+          const sStr = String(sectionName).trim().toLowerCase();
           matchedSection = allSections.find(
             (s) =>
-              s.schoolClass?._id?.toString() === matchedClass._id.toString() &&
-              (s.name.toLowerCase() === sectionName.toLowerCase() ||
-                (s.code && s.code.toLowerCase() === sectionName.toLowerCase()))
+              (s.schoolClass?._id?.toString() === matchedClass._id.toString() ||
+                s.schoolClass?.toString() === matchedClass._id.toString()) &&
+              ((s._id && s._id.toString() === String(sectionName).trim()) ||
+                s.name.toLowerCase() === sStr ||
+                (s.code && s.code.toLowerCase() === sStr))
           );
           if (!matchedSection) {
             // Check if section exists under a different class!
             const crossSection = allSections.find(
               (s) =>
-                s.name.toLowerCase() === sectionName.toLowerCase() ||
-                (s.code && s.code.toLowerCase() === sectionName.toLowerCase())
+                (s._id && s._id.toString() === String(sectionName).trim()) ||
+                s.name.toLowerCase() === sStr ||
+                (s.code && s.code.toLowerCase() === sStr)
             );
             if (crossSection) {
               status = 'conflict';
-              note = `Section '${sectionName}' belongs to class '${crossSection.schoolClass?.name}', not '${matchedClass.name}'.`;
+              note = `Section '${sectionName}' belongs to class '${crossSection.schoolClass?.name || 'another class'}', not '${matchedClass.name}'.`;
               suggestedAction = 'Assign to a valid section belonging to this class.';
             } else {
               status = 'warning';
@@ -642,6 +814,17 @@ const commitImport = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid import type.' });
   }
 
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ success: false, message: 'No rows to commit.' });
+  }
+
+  if (rows.length > 5000) {
+    return res.status(400).json({
+      success: false,
+      message: `Batch contains ${rows.length} records, exceeding the maximum allowed batch limit of 5,000 records.`,
+    });
+  }
+
   const ImportJob = mongoose.model('ImportJob');
   const Student = mongoose.model('Student');
   const Teacher = mongoose.model('Teacher');
@@ -662,6 +845,116 @@ const commitImport = async (req, res) => {
   const createdRecordIds = []; // For compensating rollback in case of catastrophic error
 
   try {
+    // Pre-commit validation: Check 120-student class-section capacity before writing any records
+    if (importType === 'students') {
+      const [allClasses, allSections] = await Promise.all([
+        SchoolClass.find({ removed: false }),
+        Section.find({ removed: false }),
+      ]);
+
+      const batchAdms = rows.map((r) => {
+        const mapped = mapRow(r, columnMapping);
+        return String(mapped.admissionNumber || '').trim().toUpperCase();
+      }).filter(Boolean);
+
+      const existingBatchStudents = await Student.find({
+        admissionNumber: { $in: batchAdms },
+        removed: false,
+      }).select('admissionNumber schoolClass section status');
+
+      const existingStudentMap = new Map();
+      existingBatchStudents.forEach((s) => {
+        if (s.admissionNumber) existingStudentMap.set(s.admissionNumber.toUpperCase(), s);
+      });
+
+      const destCounts = new Map();
+
+      for (let i = 0; i < rows.length; i++) {
+        const mapped = mapRow(rows[i], columnMapping);
+        const adm = String(mapped.admissionNumber || '').trim().toUpperCase();
+        if (!adm) continue;
+
+        const rawClass = mapped.className || mapped.schoolClass || mapped.classId;
+        const rawSec = mapped.sectionName || mapped.section || mapped.sectionId;
+        if (!rawClass) continue;
+
+        const cStr = String(rawClass).trim().toLowerCase();
+        const matchedClass = allClasses.find(
+          (c) =>
+            (c._id && c._id.toString() === String(rawClass).trim()) ||
+            c.name.toLowerCase() === cStr ||
+            (c.code && c.code.toLowerCase() === cStr)
+        );
+
+        let matchedSec = null;
+        if (matchedClass && rawSec) {
+          const sStr = String(rawSec).trim().toLowerCase();
+          matchedSec = allSections.find(
+            (s) =>
+              (s.schoolClass?._id?.toString() === matchedClass._id.toString() ||
+                s.schoolClass?.toString() === matchedClass._id.toString()) &&
+              ((s._id && s._id.toString() === String(rawSec).trim()) ||
+                s.name.toLowerCase() === sStr ||
+                (s.code && s.code.toLowerCase() === sStr))
+          );
+        }
+
+        if (matchedClass && matchedSec) {
+          const destKey = `${matchedClass._id.toString()}:${matchedSec._id.toString()}`;
+          if (!destCounts.has(destKey)) {
+            destCounts.set(destKey, {
+              classId: matchedClass._id.toString(),
+              sectionId: matchedSec._id.toString(),
+              className: matchedClass.name,
+              sectionName: matchedSec.name,
+              incomingAdms: new Set(),
+            });
+          }
+
+          const existingStu = existingStudentMap.get(adm);
+          const isSame =
+            existingStu &&
+            (existingStu.schoolClass?._id?.toString() === matchedClass._id.toString() ||
+              existingStu.schoolClass?.toString() === matchedClass._id.toString()) &&
+            (existingStu.section?._id?.toString() === matchedSec._id.toString() ||
+              existingStu.section?.toString() === matchedSec._id.toString());
+
+          if (!isSame) {
+            destCounts.get(destKey).incomingAdms.add(adm);
+          }
+        }
+      }
+
+      const capacityViolations = [];
+      for (const [, destInfo] of destCounts.entries()) {
+        const currentEnrolled = await Student.countDocuments({
+          schoolClass: destInfo.classId,
+          section: destInfo.sectionId,
+          removed: false,
+          status: { $ne: 'inactive' },
+        });
+        const incomingCount = destInfo.incomingAdms.size;
+        if (currentEnrolled + incomingCount > 120) {
+          capacityViolations.push({
+            class: destInfo.className,
+            section: destInfo.sectionName,
+            currentlyEnrolled: currentEnrolled,
+            incomingNewEnrollments: incomingCount,
+            projectedTotal: currentEnrolled + incomingCount,
+            maxCapacity: 120,
+          });
+        }
+      }
+
+      if (capacityViolations.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Import rejected: Maximum class-section capacity of 120 students would be exceeded for ${capacityViolations.length} section(s).`,
+          capacityViolations,
+        });
+      }
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const rowNum = i + 1;
       const row = mapRow(rows[i], columnMapping);
@@ -674,13 +967,24 @@ const commitImport = async (req, res) => {
             continue;
           }
 
-          // 1. Resolve Class & Section
+          // 1. Resolve Class & Section (supporting names, codes, and ObjectIds)
+          const rawClass = row.className || row.schoolClass || row.classId;
+          const rawSec = row.sectionName || row.section || row.sectionId;
+          row.className = rawClass;
+          row.sectionName = rawSec;
+
           let classDoc = null;
           if (row.className) {
-            classDoc = await SchoolClass.findOne({
-              $or: [{ name: new RegExp(`^${row.className}$`, 'i') }, { code: new RegExp(`^${row.className}$`, 'i') }],
-              removed: false,
-            });
+            const classQuery = mongoose.Types.ObjectId.isValid(row.className)
+              ? { _id: row.className, removed: false }
+              : {
+                  $or: [
+                    { name: new RegExp(`^${row.className}$`, 'i') },
+                    { code: new RegExp(`^${row.className}$`, 'i') },
+                  ],
+                  removed: false,
+                };
+            classDoc = await SchoolClass.findOne(classQuery);
             if (!classDoc) {
               classDoc = await new SchoolClass({
                 name: row.className,
@@ -692,11 +996,17 @@ const commitImport = async (req, res) => {
 
           let secDoc = null;
           if (classDoc && row.sectionName) {
-            secDoc = await Section.findOne({
-              schoolClass: classDoc._id,
-              $or: [{ name: new RegExp(`^${row.sectionName}$`, 'i') }, { code: new RegExp(`^${row.sectionName}$`, 'i') }],
-              removed: false,
-            });
+            const secQuery = mongoose.Types.ObjectId.isValid(row.sectionName)
+              ? { _id: row.sectionName, schoolClass: classDoc._id, removed: false }
+              : {
+                  schoolClass: classDoc._id,
+                  $or: [
+                    { name: new RegExp(`^${row.sectionName}$`, 'i') },
+                    { code: new RegExp(`^${row.sectionName}$`, 'i') },
+                  ],
+                  removed: false,
+                };
+            secDoc = await Section.findOne(secQuery);
             if (!secDoc) {
               secDoc = await new Section({
                 name: row.sectionName,

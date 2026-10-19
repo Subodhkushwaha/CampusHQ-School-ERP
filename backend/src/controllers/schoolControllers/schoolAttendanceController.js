@@ -260,7 +260,7 @@ const getClassAttendanceReport = async (req, res) => {
       }
     }
 
-    const records = await Attendance.find(query).populate('student', 'firstName lastName admissionNumber rollNumber').sort({ date: -1 });
+    const records = await Attendance.find(query).populate('student', 'name surname firstName lastName admissionNumber rollNumber').sort({ date: -1 });
     return res.status(200).json({
       success: true,
       result: records,

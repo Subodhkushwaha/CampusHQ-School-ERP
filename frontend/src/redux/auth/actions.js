@@ -8,22 +8,29 @@ export const login =
     dispatch({
       type: actionTypes.REQUEST_LOADING,
     });
-    const data = await authService.login({ loginData });
+    try {
+      const data = await authService.login({ loginData });
 
-    if (data.success === true) {
-      const auth_state = {
-        current: data.result,
-        isLoggedIn: true,
-        isLoading: false,
-        isSuccess: true,
-      };
-      window.localStorage.setItem('auth', JSON.stringify(auth_state));
-      window.localStorage.removeItem('isLogout');
-      dispatch({
-        type: actionTypes.REQUEST_SUCCESS,
-        payload: data.result,
-      });
-    } else {
+      if (data && data.success === true) {
+        const auth_state = {
+          current: data.result,
+          isLoggedIn: true,
+          isLoading: false,
+          isSuccess: true,
+        };
+        window.localStorage.setItem('auth', JSON.stringify(auth_state));
+        window.localStorage.removeItem('isLogout');
+        dispatch({
+          type: actionTypes.REQUEST_SUCCESS,
+          payload: data.result,
+        });
+      } else {
+        dispatch({
+          type: actionTypes.REQUEST_FAILED,
+        });
+      }
+    } catch (err) {
+      console.error('Login action error:', err);
       dispatch({
         type: actionTypes.REQUEST_FAILED,
       });
@@ -36,13 +43,20 @@ export const register =
     dispatch({
       type: actionTypes.REQUEST_LOADING,
     });
-    const data = await authService.register({ registerData });
+    try {
+      const data = await authService.register({ registerData });
 
-    if (data.success === true) {
-      dispatch({
-        type: actionTypes.REGISTER_SUCCESS,
-      });
-    } else {
+      if (data && data.success === true) {
+        dispatch({
+          type: actionTypes.REGISTER_SUCCESS,
+        });
+      } else {
+        dispatch({
+          type: actionTypes.REQUEST_FAILED,
+        });
+      }
+    } catch (err) {
+      console.error('Register action error:', err);
       dispatch({
         type: actionTypes.REQUEST_FAILED,
       });
@@ -55,22 +69,29 @@ export const verify =
     dispatch({
       type: actionTypes.REQUEST_LOADING,
     });
-    const data = await authService.verify({ userId, emailToken });
+    try {
+      const data = await authService.verify({ userId, emailToken });
 
-    if (data.success === true) {
-      const auth_state = {
-        current: data.result,
-        isLoggedIn: true,
-        isLoading: false,
-        isSuccess: true,
-      };
-      window.localStorage.setItem('auth', JSON.stringify(auth_state));
-      window.localStorage.removeItem('isLogout');
-      dispatch({
-        type: actionTypes.REQUEST_SUCCESS,
-        payload: data.result,
-      });
-    } else {
+      if (data && data.success === true) {
+        const auth_state = {
+          current: data.result,
+          isLoggedIn: true,
+          isLoading: false,
+          isSuccess: true,
+        };
+        window.localStorage.setItem('auth', JSON.stringify(auth_state));
+        window.localStorage.removeItem('isLogout');
+        dispatch({
+          type: actionTypes.REQUEST_SUCCESS,
+          payload: data.result,
+        });
+      } else {
+        dispatch({
+          type: actionTypes.REQUEST_FAILED,
+        });
+      }
+    } catch (err) {
+      console.error('Verify action error:', err);
       dispatch({
         type: actionTypes.REQUEST_FAILED,
       });
@@ -83,22 +104,29 @@ export const resetPassword =
     dispatch({
       type: actionTypes.REQUEST_LOADING,
     });
-    const data = await authService.resetPassword({ resetPasswordData });
+    try {
+      const data = await authService.resetPassword({ resetPasswordData });
 
-    if (data.success === true) {
-      const auth_state = {
-        current: data.result,
-        isLoggedIn: true,
-        isLoading: false,
-        isSuccess: true,
-      };
-      window.localStorage.setItem('auth', JSON.stringify(auth_state));
-      window.localStorage.removeItem('isLogout');
-      dispatch({
-        type: actionTypes.REQUEST_SUCCESS,
-        payload: data.result,
-      });
-    } else {
+      if (data && data.success === true) {
+        const auth_state = {
+          current: data.result,
+          isLoggedIn: true,
+          isLoading: false,
+          isSuccess: true,
+        };
+        window.localStorage.setItem('auth', JSON.stringify(auth_state));
+        window.localStorage.removeItem('isLogout');
+        dispatch({
+          type: actionTypes.REQUEST_SUCCESS,
+          payload: data.result,
+        });
+      } else {
+        dispatch({
+          type: actionTypes.REQUEST_FAILED,
+        });
+      }
+    } catch (err) {
+      console.error('ResetPassword action error:', err);
       dispatch({
         type: actionTypes.REQUEST_FAILED,
       });

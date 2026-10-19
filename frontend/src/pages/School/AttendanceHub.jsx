@@ -52,13 +52,22 @@ export default function AttendanceHub() {
         schoolService.list('schoolclass'),
         schoolService.list('section'),
       ]);
+      let defaultClassId = null;
+      let loadedSections = [];
       if (classRes.success && classRes.result?.length > 0) {
         setClasses(classRes.result);
-        setSelectedClass(classRes.result[0]._id);
+        defaultClassId = classRes.result[0]._id;
+        setSelectedClass(defaultClassId);
       }
       if (secRes.success && secRes.result?.length > 0) {
-        setSections(secRes.result);
-        setSelectedSection(secRes.result[0]._id);
+        loadedSections = secRes.result;
+        setSections(loadedSections);
+        if (defaultClassId) {
+          const matchingSecs = loadedSections.filter(
+            (s) => (s.schoolClass?._id || s.schoolClass) === defaultClassId
+          );
+          setSelectedSection(matchingSecs[0]?._id || null);
+        }
       }
     };
     init();
@@ -66,12 +75,20 @@ export default function AttendanceHub() {
 
   // When class or section or date changes, load students & existing attendance
   useEffect(() => {
-    if (!selectedClass) return;
+    if (!selectedClass || !selectedSection) {
+      setStudents([]);
+      setAttendanceMap({});
+      return;
+    }
 
     const loadStudentsAndAttendance = async () => {
       setLoading(true);
       try {
-        const stuRes = await schoolService.list('student', { schoolClass: selectedClass });
+        const stuRes = await schoolService.list('student', {
+          schoolClass: selectedClass,
+          section: selectedSection,
+          items: 200,
+        });
         const allStudents = stuRes.result || [];
         setStudents(allStudents);
 
@@ -159,6 +176,15 @@ export default function AttendanceHub() {
   };
 
   const saveAttendance = async () => {
+    if (!selectedClass || !selectedSection) {
+      message.error('Please select both a class and a section before saving attendance.');
+      return;
+    }
+    if (students.length === 0) {
+      message.warning('No students in this class and section to mark attendance.');
+      return;
+    }
+
     setSaving(true);
     try {
       const records = students.map((s) => ({
@@ -312,7 +338,13 @@ export default function AttendanceHub() {
                 <Select
                   style={{ width: 160 }}
                   value={selectedClass}
-                  onChange={setSelectedClass}
+                  onChange={(val) => {
+                    setSelectedClass(val);
+                    const matchingSecs = sections.filter(
+                      (s) => (s.schoolClass?._id || s.schoolClass) === val
+                    );
+                    setSelectedSection(matchingSecs[0]?._id || null);
+                  }}
                 >
                   {classes.map((c) => (
                     <Select.Option key={c._id} value={c._id}>
@@ -328,12 +360,15 @@ export default function AttendanceHub() {
                   style={{ width: 140 }}
                   value={selectedSection}
                   onChange={setSelectedSection}
+                  placeholder="Select Section"
                 >
-                  {sections.map((s) => (
-                    <Select.Option key={s._id} value={s._id}>
-                      {s.name}
-                    </Select.Option>
-                  ))}
+                  {sections
+                    .filter((s) => (s.schoolClass?._id || s.schoolClass) === selectedClass)
+                    .map((s) => (
+                      <Select.Option key={s._id} value={s._id}>
+                        {s.name}
+                      </Select.Option>
+                    ))}
                 </Select>
               </div>
 

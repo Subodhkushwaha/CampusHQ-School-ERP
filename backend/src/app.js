@@ -91,7 +91,7 @@ app.get(['/health', '/api/health'], async (req, res) => {
       const Admin = mongoose.model('Admin');
       const count = await Admin.countDocuments({ removed: false });
       initialized = count > 0;
-    } catch (_) {}
+    } catch (_) { }
   }
   res.status(isDbConnected ? 200 : 503).json({
     status: isDbConnected ? 'ok' : 'degraded',
@@ -103,22 +103,36 @@ app.get(['/health', '/api/health'], async (req, res) => {
 });
 
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 app.use(compression());
 
 // // default options
 // app.use(fileUpload());
 
+// Database readiness guard for routes requiring database access
+const checkDbReadiness = (req, res, next) => {
+  if (process.env.NODE_ENV !== 'test' && mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      result: null,
+      message: 'Database connection unavailable. MongoDB Atlas is currently reconnecting.',
+      database: 'disconnected',
+    });
+  }
+  next();
+};
+
 // Here our API Routes
 
-app.use('/api', coreAuthRouter);
-app.use('/api', adminAuth.isValidAuthToken, coreApiRouter);
-app.use('/api', adminAuth.isValidAuthToken, erpApiRouter);
-app.use('/api', adminAuth.isValidAuthToken, schoolApiRouter);
-app.use('/download', coreDownloadRouter);
+app.use('/api', checkDbReadiness, coreAuthRouter);
+app.use('/api', checkDbReadiness, adminAuth.isValidAuthToken, coreApiRouter);
+app.use('/api', checkDbReadiness, adminAuth.isValidAuthToken, erpApiRouter);
+app.use('/api', checkDbReadiness, adminAuth.isValidAuthToken, schoolApiRouter);
+app.use('/download', checkDbReadiness, coreDownloadRouter);
 app.use('/public', corePublicRouter);
+
 
 // If that above routes didnt work, we 404 them and forward to error handler
 app.use(errorHandlers.notFound);

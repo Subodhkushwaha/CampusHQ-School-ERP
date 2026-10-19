@@ -1,5 +1,34 @@
 const mongoose = require('mongoose');
 
+function maskUri(uri) {
+  if (!uri) return 'NOT_SET';
+  try {
+    return uri.replace(/\/\/([^:@]+):([^@]+)@/, '//****:****@');
+  } catch {
+    return '***[MASKED]***';
+  }
+}
+
+async function connectWithRetry(dbUri, mongooseOptions, maxRetries = 3, delayMs = 3000) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    attempt++;
+    try {
+      if (attempt > 1) {
+        console.log(`Retrying MongoDB connection (attempt ${attempt} of ${maxRetries})...`);
+      }
+      await mongoose.connect(dbUri, mongooseOptions);
+      return;
+    } catch (err) {
+      if (attempt >= maxRetries) {
+        throw err;
+      }
+      console.warn(`MongoDB connection attempt ${attempt} failed (${err.name}: ${err.message}). Retrying in ${delayMs / 1000}s...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 async function connectDB() {
   if (mongoose.connection.readyState === 1) {
     return;
@@ -53,7 +82,7 @@ async function connectDB() {
   };
 
   try {
-    await mongoose.connect(dbUri, mongooseOptions);
+    await connectWithRetry(dbUri, mongooseOptions, isProduction ? 3 : 1, 3000);
     const activeDb = mongoose.connection.db?.databaseName || targetDbName;
     console.log(`Connected to MongoDB successfully (host: ${hostInfo}, active database: "${activeDb}")`);
 
@@ -66,16 +95,37 @@ async function connectDB() {
       console.warn('MongoDB connection lost. Driver will automatically attempt reconnection.');
     });
   } catch (err) {
-    console.log(`DATABASE CONNECTION FAILED: Unable to connect to MongoDB (host: ${hostInfo}, database: "${targetDbName}"). [${err.name}] ${err.message}`);
+    const sanitizedUri = maskUri(dbUri);
     console.error('\n' + '='.repeat(68));
     console.error('DATABASE CONNECTION FAILED: Unable to connect to MongoDB');
     console.error(`Target Host:     ${hostInfo}`);
     console.error(`Target Database: ${targetDbName}`);
+    console.error(`Sanitized URI:   ${sanitizedUri}`);
     console.error(`Error Name:      ${err.name}`);
     console.error(`Error Message:   ${err.message}`);
+
+    const msg = (err.message || '').toLowerCase();
+    const name = err.name || '';
+    if (
+      name.includes('ServerSelectionError') ||
+      msg.includes('could not connect to any servers') ||
+      msg.includes('timed out')
+    ) {
+      console.error('\nDIAGNOSIS: IP ACCESS LIST / FIREWALL ISSUE (Atlas Network Access)');
+      console.error('Your hosting provider (Railway / Render) uses dynamic outbound IP addresses.');
+      console.error('MongoDB Atlas rejected the connection because the connecting IP is not permitted.');
+      console.error('To resolve: Add 0.0.0.0/0 to MongoDB Atlas -> Security -> Network Access.');
+    } else if (msg.includes('auth') || msg.includes('authentication failed')) {
+      console.error('\nDIAGNOSIS: AUTHENTICATION FAILURE');
+      console.error('Verify the database user credentials and URL-encoded special characters in DATABASE.');
+    } else if (msg.includes('enotfound') || msg.includes('querysrv')) {
+      console.error('\nDIAGNOSIS: DNS RESOLUTION FAILURE');
+      console.error('The cluster hostname could not be resolved. Verify cluster status in MongoDB Atlas.');
+    }
     console.error('='.repeat(68) + '\n');
     throw new Error(`Database Connection Failed: ${err.message}`);
   }
 }
 
 module.exports = connectDB;
+

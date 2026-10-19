@@ -77,7 +77,7 @@ async function runDiagnostic() {
   if (!detectedVar || !rawUri) {
     console.error('\n❌ ERROR: No MongoDB connection string found in environment variables.');
     console.error('   Checked: DATABASE, MONGODB_URI, MONGO_URI, DATABASE_URL');
-    console.error('   Action: Set DATABASE in backend/.env or Render Environment Variables.');
+    console.error('   Action: Set DATABASE (or MONGODB_URI) in backend/.env or Railway Service Variables.');
     process.exit(1);
   }
 
@@ -225,16 +225,16 @@ async function runDiagnostic() {
       msg.includes('connection timed out') ||
       msg.includes('serverselectionerror')
     ) {
-      console.log('\n▶ ISSUE: FIREWALL / IP WHITELIST BLOCKED (Most Common on Render)');
+      console.log('\n▶ ISSUE: FIREWALL / IP WHITELIST BLOCKED (Common on Railway & Render)');
       console.log('  The MongoDB Atlas cluster refused or timed out the connection.');
-      console.log('  Render uses dynamic IP addresses that change on every deploy and restart.');
+      console.log('  Cloud container platforms use dynamic IP addresses that change on deploy and restart.');
       console.log('\n  REQUIRED ACTION:');
       console.log('  1. Open MongoDB Atlas -> Security -> Network Access:');
       console.log('     https://cloud.mongodb.com/v2/6acc08ed7cc765b497d87a41#/security/network/accessList');
       console.log('  2. Click "+ Add IP Address".');
       console.log('  3. Click "Allow Access From Anywhere" (CIDR: 0.0.0.0/0).');
       console.log('  4. Click "Confirm" and wait 60 seconds for status to show "Active".');
-      console.log('  5. On Render, trigger "Manual Deploy" -> "Deploy latest commit".');
+      console.log('  5. On Railway/Render, trigger redeploy.');
     } else if (
       msg.includes('authentication failed') ||
       msg.includes('bad auth') ||

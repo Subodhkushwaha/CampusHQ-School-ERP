@@ -56,7 +56,9 @@ exports.generatePdf = async (
       });
       const { dateFormat } = useDate({ settings });
 
-      settings.public_server_file = process.env.PUBLIC_SERVER_FILE;
+      settings.public_server_file =
+        process.env.PUBLIC_SERVER_FILE ||
+        (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/` : 'http://localhost:8888/');
 
       const htmlContent = pug.renderFile('src/pdf/' + modelName + '.pug', {
         model: result,

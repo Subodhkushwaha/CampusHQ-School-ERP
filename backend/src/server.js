@@ -15,30 +15,61 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
 require('dotenv').config({ path: '.env' });
 
-// Validate critical required environment variables
-const dbUri = process.env.DATABASE || process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
-if (!process.env.DATABASE && dbUri) {
-  process.env.DATABASE = dbUri;
-}
+// Determine MongoDB connection URI with clear precedence:
+// 1. DATABASE (primary project convention)
+// 2. MONGODB_URI (standard cloud provider convention)
+// 3. MONGO_URI (legacy fallback)
+// 4. DATABASE_URL (generic cloud fallback)
+const rawDbUri =
+  process.env.DATABASE ||
+  process.env.MONGODB_URI ||
+  process.env.MONGO_URI ||
+  process.env.DATABASE_URL;
 
-if (!process.env.DATABASE) {
-  console.error('CRITICAL STARTUP ERROR: DATABASE environment variable is required.');
-  console.error('Please provide a valid MongoDB connection string in backend/.env or hosting environment (DATABASE or MONGODB_URI).');
+const dbUri = typeof rawDbUri === 'string' ? rawDbUri.trim().replace(/^["']|["']$/g, '') : null;
+
+if (!dbUri) {
+  console.error('\n' + '='.repeat(70));
+  console.error('CRITICAL STARTUP ERROR: MongoDB connection URI is required.');
+  console.error('Neither DATABASE nor MONGODB_URI environment variable was found.');
+  console.error('Expected variable names:');
+  console.error('  1. DATABASE    (Primary)');
+  console.error('  2. MONGODB_URI (Secondary fallback)');
+  console.error('\nACTION REQUIRED ON RAILWAY:');
+  console.error('  1. Open your Railway project dashboard:');
+  console.error('     https://railway.com/project/f23debcb-3be3-48c7-865d-880f1b53e811');
+  console.error('  2. Select your backend service.');
+  console.error('  3. Navigate to the "Variables" tab.');
+  console.error('  4. Add the variable:');
+  console.error('     DATABASE=mongodb+srv://<username>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority');
+  console.error('     (or MONGODB_URI with the same connection string)');
+  console.error('='.repeat(70) + '\n');
   process.exit(1);
 }
 
-if (!process.env.DATABASE.startsWith('mongodb://') && !process.env.DATABASE.startsWith('mongodb+srv://')) {
-  console.error('CRITICAL STARTUP ERROR: DATABASE environment variable is malformed.');
+process.env.DATABASE = dbUri;
+
+if (!dbUri.startsWith('mongodb://') && !dbUri.startsWith('mongodb+srv://')) {
+  console.error('\n' + '='.repeat(70));
+  console.error('CRITICAL STARTUP ERROR: MongoDB connection URI is malformed.');
   console.error('DATABASE must begin with "mongodb://" or "mongodb+srv://".');
-  console.error('Received format does not match expected MongoDB connection URI.');
+  console.error('Received protocol format does not match expected MongoDB connection URI.');
+  console.error('='.repeat(70) + '\n');
   process.exit(1);
 }
 
-if (!process.env.JWT_SECRET) {
+const rawJwt = process.env.JWT_SECRET;
+const jwtSecret = typeof rawJwt === 'string' ? rawJwt.trim().replace(/^["']|["']$/g, '') : null;
+if (!jwtSecret) {
+  console.error('\n' + '='.repeat(70));
   console.error('CRITICAL STARTUP ERROR: JWT_SECRET environment variable is required.');
-  console.error('Please define a secure random JWT_SECRET in backend/.env');
+  console.error('Please define a secure random JWT_SECRET in your Railway service Variables tab');
+  console.error('or backend/.env for local development.');
+  console.error('='.repeat(70) + '\n');
   process.exit(1);
 }
+process.env.JWT_SECRET = jwtSecret;
+
 
 const connectDB = require('./connectDB');
 

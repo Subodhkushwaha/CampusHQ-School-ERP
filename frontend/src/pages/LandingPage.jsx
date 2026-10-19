@@ -54,8 +54,8 @@ export default function LandingPage() {
       children: (
         <Text>
           Click the "Student Sign In" button above. You can use your campus email and password, or use
-          the pre-configured demo student credentials (<code>admin@admin.com</code> /{' '}
-          <code>admin123</code>) to test all features instantly.
+          the pre-configured demo student credentials (<code>student@school.edu</code> /{' '}
+          <code>student123</code>) to test student features.
         </Text>
       ),
     },
@@ -203,7 +203,7 @@ export default function LandingPage() {
                   </Text>
                 </div>
                 <Paragraph style={{ color: '#94a3b8', fontSize: 13, marginBottom: 16 }}>
-                  You can explore the full application using the pre-seeded student administrator account:
+                  You can explore the student portal using the demo student account:
                 </Paragraph>
                 <div
                   style={{
@@ -217,11 +217,11 @@ export default function LandingPage() {
                 >
                   <div>
                     <span style={{ color: '#94a3b8' }}>Email: </span>
-                    <span style={{ color: '#38bdf8' }}>admin@admin.com</span>
+                    <span style={{ color: '#38bdf8' }}>student@school.edu</span>
                   </div>
                   <div style={{ marginTop: 4 }}>
                     <span style={{ color: '#94a3b8' }}>Pass:  </span>
-                    <span style={{ color: '#38bdf8' }}>admin123</span>
+                    <span style={{ color: '#38bdf8' }}>student123</span>
                   </div>
                 </div>
                 <Button block type="primary" onClick={() => navigate('/login')}>

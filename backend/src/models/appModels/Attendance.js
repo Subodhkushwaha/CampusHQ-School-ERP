@@ -32,7 +32,7 @@ const schema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Present', 'Absent', 'Late', 'Excused'],
+    enum: ['Present', 'Absent', 'Late', 'Excused', 'HalfDay'],
     default: 'Present',
   },
   markedBy: {

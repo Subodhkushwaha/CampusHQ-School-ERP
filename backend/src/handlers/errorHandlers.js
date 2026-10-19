@@ -61,6 +61,20 @@ exports.notFound = (req, res, next) => {
   Development Error Handler
 */
 exports.developmentErrors = (error, req, res, next) => {
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      message: 'Uploaded file exceeds the maximum allowed size limit of 15 MB.',
+      error: error.message,
+    });
+  }
+  if (error.type === 'entity.too.large' || error.status === 413) {
+    return res.status(413).json({
+      success: false,
+      message: 'Request payload exceeds the maximum allowed limit.',
+      error: error.message,
+    });
+  }
   error.stack = error.stack || '';
   return res.status(error.status || 500).json({
     success: false,
@@ -73,6 +87,20 @@ exports.developmentErrors = (error, req, res, next) => {
   Production Error Handler
 */
 exports.productionErrors = (error, req, res, next) => {
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      message: 'Uploaded file exceeds the maximum allowed size limit of 15 MB.',
+      error: null,
+    });
+  }
+  if (error.type === 'entity.too.large' || error.status === 413) {
+    return res.status(413).json({
+      success: false,
+      message: 'Request payload exceeds the maximum allowed limit.',
+      error: null,
+    });
+  }
   return res.status(error.status || 500).json({
     success: false,
     message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : error.message,

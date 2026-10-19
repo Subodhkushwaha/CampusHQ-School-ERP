@@ -7,34 +7,41 @@ const errorHandler = (error) => {
       duration: 15,
       maxCount: 1,
     });
-    // Code to execute when there is internet connection
     notification.error({
       message: 'No internet connection',
-      description: 'Cannot connect to the Internet, Check your internet network',
+      description: 'Cannot connect to the Internet. Please check your network connection.',
     });
     return {
       success: false,
       result: null,
-      message: 'Cannot connect to the server, Check your internet network',
+      message: 'Cannot connect to the Internet. Please check your network connection.',
     };
   }
 
   const { response } = error;
 
   if (!response) {
+    const isTimeout =
+      error.code === 'ECONNABORTED' ||
+      (error.message && error.message.toLowerCase().includes('timeout'));
+
+    const errorTitle = isTimeout ? 'Server Request Timed Out' : 'Cannot Connect to Server';
+    const errorDesc = isTimeout
+      ? 'The backend server took too long to respond (timeout 15s). The Render free tier instance may be waking up or database access is unreachable.'
+      : 'Unable to reach the backend service. Check network connectivity or verify if the backend service is running.';
+
     notification.config({
-      duration: 20,
-      maxCount: 1,
+      duration: 12,
+      maxCount: 2,
     });
-    // Code to execute when there is no internet connection
-    // notification.error({
-    //   message: 'Problem connecting to server',
-    //   description: 'Cannot connect to the server, Try again later',
-    // });
+    notification.error({
+      message: errorTitle,
+      description: errorDesc,
+    });
     return {
       success: false,
       result: null,
-      message: 'Cannot connect to the server, Contact your Account administrator',
+      message: errorDesc,
     };
   }
 
@@ -50,53 +57,55 @@ const errorHandler = (error) => {
   }
 
   if (response && response.status) {
-    const message = response.data && response.data.message;
+    const isHtml = typeof response.data === 'string' && response.data.includes('<');
+    const message = (!isHtml && response.data && response.data.message) || null;
 
-    const errorText = message || codeMessage[response.status];
-    const { status, error } = response;
+    let errorText = message || codeMessage[response.status];
+    if (response.status === 502) {
+      errorText = '502 Bad Gateway: Backend web service is unreachable or restarting on Render.';
+    } else if (response.status === 503) {
+      errorText = message || '503 Service Unavailable: Backend database connection is offline or reconnecting.';
+    }
+
     notification.config({
-      duration: 20,
+      duration: 12,
       maxCount: 2,
     });
     notification.error({
-      message: `Request error ${status}`,
-      description: errorText,
+      message: `Request error ${response.status}`,
+      description: errorText || `Server responded with status ${response.status}`,
     });
 
     if (response?.data?.error?.name === 'JsonWebTokenError') {
       window.localStorage.removeItem('auth');
       window.localStorage.removeItem('isLogout');
       window.location.href = '/logout';
-    } else return response.data;
+      return { success: false, result: null, message: errorText };
+    }
+
+    if (typeof response.data === 'object' && response.data !== null) {
+      return response.data;
+    }
+
+    return {
+      success: false,
+      result: null,
+      message: errorText || `Error ${response.status}`,
+    };
   } else {
     notification.config({
-      duration: 15,
+      duration: 12,
       maxCount: 1,
     });
-
-    if (navigator.onLine) {
-      // Code to execute when there is internet connection
-      notification.error({
-        message: 'Problem connecting to server',
-        description: 'Cannot connect to the server, Try again later',
-      });
-      return {
-        success: false,
-        result: null,
-        message: 'Cannot connect to the server, Contact your Account administrator',
-      };
-    } else {
-      // Code to execute when there is no internet connection
-      notification.error({
-        message: 'No internet connection',
-        description: 'Cannot connect to the Internet, Check your internet network',
-      });
-      return {
-        success: false,
-        result: null,
-        message: 'Cannot connect to the server, Check your internet network',
-      };
-    }
+    notification.error({
+      message: 'Problem connecting to server',
+      description: error.message || 'Cannot connect to the server. Try again later.',
+    });
+    return {
+      success: false,
+      result: null,
+      message: error.message || 'Cannot connect to the server. Try again later.',
+    };
   }
 };
 

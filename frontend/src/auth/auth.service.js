@@ -5,12 +5,14 @@ import errorHandler from '@/request/errorHandler';
 import successHandler from '@/request/successHandler';
 
 axios.defaults.withCredentials = true;
+axios.defaults.timeout = 15000; // 15 seconds request timeout to prevent infinite hangs
 
 export const login = async ({ loginData }) => {
   try {
     const response = await axios.post(
       API_BASE_URL + `login?timestamp=${new Date().getTime()}`,
-      loginData
+      loginData,
+      { timeout: 15000 }
     );
 
     const { status, data } = response;

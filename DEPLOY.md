@@ -1,66 +1,80 @@
-# CampusHQ School ERP — Render Deployment Guide
+# CampusHQ School ERP — Railway Backend Deployment Guide
 
-This guide details the deployment configuration and environment variables required to run the CampusHQ School ERP backend on Render.
+This guide details the deployment configuration and environment variables required to run the CampusHQ School ERP backend on Railway with MongoDB Atlas and the Vercel frontend.
 
 ---
 
-## 1. Render Web Service Settings
+## 1. Railway Service Settings
+
+In your [Railway Project](https://railway.com/) backend service:
 
 | Setting | Value | Description |
 | :--- | :--- | :--- |
-| **Runtime** | `Node` | Node.js 20+ runtime |
-| **Root Directory** | `backend` | **Critical:** Scopes builds and start commands to the backend directory |
-| **Build Command** | `npm install` | Installs backend production dependencies |
+| **Root Directory** | `/backend` (or `backend`) | Scopes builds, dependencies, and start scripts to the backend directory |
+| **Build Command** | `npm install` (default Nixpacks / Node) | Installs backend dependencies from package.json |
 | **Start Command** | `npm start` | Executes `node src/server.js` |
-| **Health Check Path** | `/health` | Returns `200 OK` `{ "status": "ok", "database": "connected" }` |
-| **Auto Deploy** | `Yes` | Deploys on git push to `main` |
+| **Health Check Path** | `/health` | Returns `200 OK` `{"status":"ok","database":"connected","systemInitialized":true}` |
+| **Restart Policy** | `On Failure` (Max retries: 5) | Restarts automatically if transient errors occur |
 
 ---
 
-## 2. Required Environment Variables (Render Dashboard > Environment)
+## 2. Required Environment Variables (Railway Dashboard > Service > Variables)
 
-Configure the following variables in the **Environment** tab of your Render Web Service:
+Configure the following variables in the **Variables** tab of your Railway Backend Service:
 
 | Variable | Required | Example / Recommended Value | Description |
 | :--- | :---: | :--- | :--- |
-| `DATABASE` | **Yes** | `mongodb+srv://<user>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority` | Full MongoDB connection string. Must start with `mongodb://` or `mongodb+srv://` and point to the cluster containing the `campushq` database. |
-| `JWT_SECRET` | **Yes** | `secure_random_64_character_hex_or_alphanumeric_secret` | Secret key used for signing and verifying JSON Web Tokens (session auth). Must not be empty. |
-| `NODE_ENV` | **Yes** | `production` | Sets Node to production mode (enables performance optimizations & strict CORS). |
-| `PORT` | **Yes** | `10000` | Port on which Express listens. Render defaults to `10000`. |
-| `NODE_VERSION` | **Yes** | `20.18.0` | Ensures Render builds and runs with Node.js 20. |
+| `DATABASE` | **Yes** | `mongodb+srv://<username>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority` | Full MongoDB Atlas connection string. (Note: `MONGODB_URI` is also accepted as fallback). |
+| `JWT_SECRET` | **Yes** | *(64-character random string)* | Secret key used for signing and verifying JSON Web Tokens (session auth). |
+| `NODE_ENV` | **Yes** | `production` | Sets Node to production mode (enables performance optimizations & CORS protection). |
+| `PORT` | Auto | *(Injected automatically by Railway)* | Express listens on `process.env.PORT` on `0.0.0.0`. Do not override with a fixed port. |
 | `FRONTEND_URL` | Optional | `https://campus-hq-school-erp.vercel.app` | Allowed frontend origin for CORS. Multiple origins can be comma-separated. |
 | `WEBSITE_URL` | Optional | `https://campus-hq-school-erp.vercel.app` | Secondary allowed origin for CORS. |
-| `PUBLIC_SERVER_FILE` | Optional | `https://campushq-school-erp.onrender.com/` | Public base URL for uploaded file and PDF assets. |
+| `PUBLIC_SERVER_FILE` | Optional | `https://<your-backend-service>.up.railway.app/` | Public base URL for uploaded file assets and PDF invoice branding logos. |
 
 ---
 
 ## 3. MongoDB Atlas Manual Configuration Checklist
 
-Before redeploying on Render, verify these three settings in your [MongoDB Atlas Dashboard](https://cloud.mongodb.com/):
+Before redeploying on Railway, verify these settings in your [MongoDB Atlas Dashboard](https://cloud.mongodb.com/):
 
 1. **Network Access (IP Whitelist):**
    * Go to **Security > Network Access**.
    * Ensure `0.0.0.0/0` (Allow Access From Anywhere) is present and has status **Active**.
-   * *Why?* Render web services use dynamic outbound IP addresses that change on deploy and restart. Without `0.0.0.0/0`, Atlas's reverse proxy will reject incoming TLS connections with fatal TLS alerts.
-2. **Cluster Running State:**
-   * Ensure cluster `cluster0.fzeutel.mongodb.net` is **Active** (not paused, undergoing maintenance, or provisioning).
-3. **Target Database in Connection URI:**
-   * Ensure the URI path explicitly targets `/campushq`:
-     `mongodb+srv://<user>:<password>@cluster0.fzeutel.mongodb.net/campushq?retryWrites=true&w=majority`
-   * Ensure the database user has **Read and write to any database** (or read/write on the `campushq` database).
-   * Ensure special characters in `<password>` (such as `@`, `:`, `#`, `%`) are URL-encoded.
+   * *Why?* Railway container instances use dynamic cloud outbound IP addresses. Without `0.0.0.0/0` (or a dedicated static proxy), Atlas rejects incoming TCP/TLS connections on port 27017.
+2. **Credential Rotation & Security:**
+   * Rotate the database user password in **Security > Database Users**.
+   * Ensure special characters in `<password>` (`@`, `:`, `/`, `?`, `#`, `%`) are properly URL-encoded.
+   * Ensure the database user has **Read and write to any database** (or explicitly on the `campushq` database).
+3. **Cluster Status:**
+   * Verify cluster `cluster0.fzeutel.mongodb.net` is active (not paused).
 
 ---
 
-## 4. Redeployment Steps
+## 4. Frontend Configuration (Vercel)
 
-1. In Render Dashboard, open your web service.
-2. Under **Environment**, verify or set the variables listed in Section 2.
-3. Click **Save Changes**.
-4. Click **Manual Deploy** > **Deploy latest commit**.
+In your [Vercel Project Dashboard](https://vercel.com/) under **Settings > Environment Variables**:
+
+| Variable | Required | Value |
+| :--- | :---: | :--- |
+| `VITE_BACKEND_SERVER` | **Yes** | `https://<your-backend-service>.up.railway.app` |
+| `VITE_FILE_BASE_URL` | Optional | `https://<your-backend-service>.up.railway.app` |
+
+---
+
+## 5. Railway Deployment Verification
+
+1. In Railway Dashboard, open your backend service.
+2. Under **Variables**, verify `DATABASE` and `JWT_SECRET` are set.
+3. In **Settings > Networking**, click **Generate Domain** if not already created (provides `https://<service-name>.up.railway.app`).
+4. Trigger a deploy or push to `main`.
 5. Observe the deployment logs:
    ```text
    Connecting to MongoDB (host: cluster0.fzeutel.mongodb.net, target database: "campushq")...
    Connected to MongoDB successfully (host: cluster0.fzeutel.mongodb.net, active database: "campushq")
-   Express running → On PORT : 10000
+   Express running → On PORT : <railway_port> (host: 0.0.0.0)
+   ```
+6. Check health check:
+   ```bash
+   curl -i https://<your-backend-service>.up.railway.app/health
    ```

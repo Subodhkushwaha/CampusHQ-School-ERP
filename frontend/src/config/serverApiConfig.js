@@ -6,6 +6,7 @@ const isLocalhost =
 const envBackend =
   import.meta.env.VITE_BACKEND_SERVER ||
   import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_RAILWAY_URL ||
   '';
 
 // Clean backend URL to prevent double '/api' prefixes and trailing slashes
@@ -13,10 +14,10 @@ const cleanBackend = envBackend
   ? envBackend.replace(/\/api\/?$/, '').replace(/\/+$/, '')
   : '';
 
-// Use configured env URL, or localhost in dev, or deployed Render URL as safe production fallback
+// Use configured backend URL, or localhost in development, or relative path in production
 const rawBackend = cleanBackend
   ? cleanBackend
-  : (isLocalhost ? 'http://localhost:8888' : 'https://campushq-school-erp.onrender.com');
+  : (isLocalhost ? 'http://localhost:8888' : '');
 
 export const API_BASE_URL = `${rawBackend}/api/`;
 

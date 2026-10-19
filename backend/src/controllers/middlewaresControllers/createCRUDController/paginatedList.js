@@ -28,6 +28,15 @@ const paginatedList = async (Model, req, res) => {
     filterCondition = { [filter]: equal };
   }
 
+  // Also support filtering by schema fields passed as direct query params (e.g. schoolClass, section)
+  const reservedParams = new Set(['page', 'items', 'sortBy', 'sortValue', 'filter', 'equal', 'fields', 'q']);
+  for (const [key, val] of Object.entries(req.query)) {
+    if (reservedParams.has(key)) continue;
+    if (Model.schema && Model.schema.paths[key] && typeof val === 'string' && !val.startsWith('$')) {
+      filterCondition[key] = val;
+    }
+  }
+
   //  Query the database for a list of all results
   const resultsPromise = Model.find({
     removed: false,
